@@ -210,7 +210,9 @@ class OnyxAnalysis:
     # Add in function to set s3 output path, other optional fields
     # Create analysis in Onyx
     @call_to_onyx
-    def write_analysis_to_onyx(self, server: str, dryrun: bool, publish_analysis: bool) -> tuple[str, int]:
+    def write_analysis_to_onyx(
+        self, server: str, dryrun: bool, publish_analysis: bool
+    ) -> tuple[str, int]:
         """Attempts to add onyx analysis to object.
         Arguments:
             server -- Server submitting data to
