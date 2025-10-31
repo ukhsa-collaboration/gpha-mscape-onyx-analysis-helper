@@ -307,6 +307,7 @@ class OnyxAnalysis:
             "identifiers",
             "synthscape_records",
             "mscape_records",
+            "is_published",
         ]
 
         invalid_attributes = list(analysis_dict.keys() - set(valid_attributes))
