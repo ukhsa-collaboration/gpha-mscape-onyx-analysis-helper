@@ -242,20 +242,30 @@ class OnyxAnalysis:
         return result_file
 
     # Check fields and attributes are valid
-    def check_analysis_object(self) -> tuple[bool, bool]:
-        """Performs checks on analysis object to ensure required fields are
-        present and there are no invalid attributes.
+    def check_unpublished_analysis_object(self) -> tuple[bool, bool]:
+        """Performs checks on an analysis object that will not be
+        published yet to ensure required fields are present and there
+        are no invalid attributes.
         """
         required_field_fail = self._check_required_fields()
         attribute_fail = self._check_analysis_attributes()
 
         return required_field_fail, attribute_fail
 
+    def check_published_analysis_object(self):
+        """Performs checks on analysis object that will be published to
+        ensure required fields and outputs are present and that there are
+        no invalid attributes.
+        """
+        required_field_fail = self._check_required_fields()
+        output_field_fail = self._check_required_outputs()
+        attribute_fail = self._check_analysis_attributes()
+
+        return required_field_fail, output_field_fail, attribute_fail
+
     def _check_required_fields(self) -> bool:
-        "Checks all required fields are present, returns True is fields missing"
+        "Checks all required fields are present, returns True if fields missing"
         fields_dict = vars(self)
-        required_field_fail = False
-        # Check required fields
         missing_field = False
         required_fields = [
             "analysis_date",
@@ -270,15 +280,18 @@ class OnyxAnalysis:
             logging.error("Missing required fields: %s", missing_fields)
             missing_field = True
 
-        # Check outputs
+        return missing_field
+
+    def _check_required_outputs(self) -> bool:
+        "Checks output field is present, returns True if missing"
+        missing_output = False
         output_fields = ["report", "outputs"]
+
         if not any(field in output_fields for field in fields_dict):
             logging.error("Fields dict must contain one of: %s", output_fields)
-            missing_field = True
-        if missing_field:
-            required_field_fail = True
+            missing_output = True
 
-        return required_field_fail
+        return missing_output
 
     def _check_analysis_attributes(self) -> bool:
         "Checks all attributes are valid onyx fields, return True if invalid fields present"
