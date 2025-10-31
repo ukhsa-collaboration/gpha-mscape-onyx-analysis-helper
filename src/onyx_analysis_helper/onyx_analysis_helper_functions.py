@@ -353,3 +353,35 @@ class OnyxAnalysis:
         "Sets class attributes from input dictionary"
         for key, value in analysis_dict.items():
             setattr(self, key, value)
+
+    @call_to_onyx
+    def update_onyx_analysis(
+        self, server: str, analysis_id: str, dryrun: bool, publish_analysis: bool
+    ) -> tuple[str, int]:
+        """Attempts to update an existing onyx analysis with fields in an
+        OnyxAnalysis object.
+        Arguments:
+            server -- Server submitting data to
+            analysis_id -- ID of analysis to be updated
+            dryrun -- Specify if test or real upload to onyx
+            publish -- Specify if analysis should be published. Set to true if all
+            fields complete, false if additional fields e.g. outputs needs adding
+            before publication of analysis
+        Returns:
+            result -- Analysis ID if valid submission, {} if test upload,
+                      None if upload fails
+            exitcode -- 0 if successful, 1 if fail
+        """
+        self.is_published = publish_analysis
+
+        with OnyxClient(CONFIG) as client:
+            result = client.update_analysis(
+                project=server,
+                analysis_id=analysis_id,
+                fields=vars(self),
+                test=dryrun
+        )
+
+        exitcode = 0
+
+        return result, exitcode
