@@ -210,16 +210,18 @@ class OnyxAnalysis:
     # Add in function to set s3 output path, other optional fields
     # Create analysis in Onyx
     @call_to_onyx
-    def write_analysis_to_onyx(self, server: str, dryrun: bool) -> tuple[str, int]:
+    def write_analysis_to_onyx(self, server: str, dryrun: bool, publish_analysis: bool) -> tuple[str, int]:
         """Attempts to add onyx analysis to object.
         Arguments:
             server -- Server submitting data to
             dryrun -- Specify if test or real upload to onyx
+            publish -- Specify if analysis should be published. Set to true is all fields complete, false if additional fields e.g. outputs needs adding before publication of analysis
         Returns:
             result -- Analysis ID if valid submission, {} if test upload,
                       None if upload fails
             exitcode -- 0 if successful, 1 if fail
         """
+        self.is_published = publish_analysis
 
         with OnyxClient(CONFIG) as client:
             result = client.create_analysis(project=server, fields=vars(self), test=dryrun)
