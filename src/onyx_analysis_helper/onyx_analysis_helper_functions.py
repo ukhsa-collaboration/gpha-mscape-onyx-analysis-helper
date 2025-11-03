@@ -284,6 +284,7 @@ class OnyxAnalysis:
 
     def _check_required_outputs(self) -> bool:
         "Checks output field is present, returns True if missing"
+        fields_dict = vars(self)
         missing_output = False
         output_fields = ["report", "outputs"]
 
