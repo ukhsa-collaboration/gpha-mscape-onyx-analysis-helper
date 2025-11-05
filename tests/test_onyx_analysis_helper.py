@@ -72,6 +72,10 @@ def complete_field_dict():
 
     return field_dict
 
+@pytest.fixture
+def no_error_log():
+    log = ""
+    return log
 
 @pytest.fixture
 def missing_field_dict():
@@ -276,33 +280,43 @@ def test_write_analysis_to_json(onyx_json_file_path, complete_field_dict):
     assert Path(onyx_json_file_path).exists()
 
 
-def test_check_required_fields_passes(complete_field_dict, caplog):
+@pytest.mark.parametrize(
+    "field_dict,expected_log_message,expected_output",
+    [
+        ("complete_field_dict", "no_error_log", False),
+        ("missing_field_dict", "missing_field_log", True),
+    ],
+)
+def test_check_required_fields(field_dict, expected_log_message, expected_output, request, caplog):
+    field_dict = request.getfixturevalue(field_dict)
+    expected_log_message = request.getfixturevalue(expected_log_message)
+
     analysis = OnyxAnalysis()
-    analysis._set_analysis_attributes(complete_field_dict)
+    analysis._set_analysis_attributes(field_dict)
 
     field_fail = analysis._check_required_fields()
 
-    assert caplog.text == ""
-    assert not field_fail
+    assert all(messages in caplog.text for messages in expected_log_message)
+    assert field_fail == expected_output
 
 
 @pytest.mark.parametrize(
-    "test_input,log_message",
+    "field_dict,expected_log_message,expected_output",
     [
-        ("missing_field_dict", "missing_field_log"),
-        ("missing_output_dict", "missing_output_log"),
-        ("missing_both_dict", "missing_both_log"),
+        ("complete_field_dict", "no_error_log", False),
+        ("missing_output_dict", "missing_output_log", True),
     ],
 )
-def test_check_required_fields_fails(test_input, log_message, request, caplog):
-    fields_dict = request.getfixturevalue(test_input)
-    log_message = request.getfixturevalue(log_message)
+def test_check_required_outputs(field_dict, expected_log_message, expected_output, request, caplog):
+    fields_dict = request.getfixturevalue(field_dict)
+    expected_log_message = request.getfixturevalue(expected_log_message)
 
     analysis = OnyxAnalysis()
     analysis._set_analysis_attributes(fields_dict)
-    analysis._check_required_fields()
+    output_fail = analysis._check_required_outputs()
 
-    assert all(messages in caplog.text for messages in log_message)
+    assert all(messages in caplog.text for messages in expected_log_message)
+    assert output_fail == expected_output
 
 
 def test_read_analysis_from_json_pass(example_onyx_json_file, complete_field_dict):
