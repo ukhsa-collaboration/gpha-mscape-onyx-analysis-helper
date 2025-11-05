@@ -242,26 +242,28 @@ class OnyxAnalysis:
         return result_file
 
     # Check fields and attributes are valid
-    def check_unpublished_analysis_object(self) -> tuple[bool, bool]:
-        """Performs checks on an analysis object that will not be
-        published yet to ensure required fields are present and there
-        are no invalid attributes.
+    def check_analysis_object(self, publish_analysis: bool) -> list[str]:
+        """Performs checks on an analysis object to ensure required fields
+        are present and that there are no invalid attributes. Runs additional
+        check on the outputs being present if analysis is to be published.
         """
+        # Set up list to store fail statuses
+        status_list = []
+
+        # Check all required fields are present and add status to list
         required_field_fail = self._check_required_fields()
+        status_list.append(required_field_fail)
+
+        # Check attributes are present and add status to list
         attribute_fail = self._check_analysis_attributes()
+        status_list.append(attribute_fail)
 
-        return required_field_fail, attribute_fail
+        # If analysis is to be published, check outputs or report field present
+        if publish_analysis:
+            output_field_fail = self._check_required_outputs()
+            status_list.append(output_field_fail)
 
-    def check_published_analysis_object(self):
-        """Performs checks on analysis object that will be published to
-        ensure required fields and outputs are present and that there are
-        no invalid attributes.
-        """
-        required_field_fail = self._check_required_fields()
-        output_field_fail = self._check_required_outputs()
-        attribute_fail = self._check_analysis_attributes()
-
-        return required_field_fail, output_field_fail, attribute_fail
+        return status_list
 
     def _check_required_fields(self) -> bool:
         "Checks all required fields are present, returns True if fields missing"
