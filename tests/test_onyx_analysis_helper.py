@@ -353,24 +353,30 @@ def test_check_analysis_attributes_fail(invalid_field_dict, caplog):
     assert attr_fail
 
 
-def test_check_analysis_object_pass(complete_field_dict):
+@pytest.mark.parametrize(
+    "test_input,publish_boolean,expected_output",
+    [
+        pytest.param("missing_output_dict", False, [False, False],
+                     id="Correct input for prepublish analysis object - no errors"),
+        pytest.param("missing_both_dict", False, [True, False],
+                     id="Incorrect input for prepublish analysis object - missing field fail"),
+        pytest.param("complete_field_dict", True, [False, False, False],
+                     id="Correct input for publish analysis object - no errors"),
+        pytest.param("invalid_field_dict", True, [True, True, False],
+                     id="Incorrect input for publish analysis object - missing field and invalid fields fails"),
+    ],
+)
+def test_check_analysis_object(test_input, publish_boolean,
+                               expected_output, request):
+    fields_dict = request.getfixturevalue(test_input)
+
     analysis = OnyxAnalysis()
-    analysis._set_analysis_attributes(complete_field_dict)
+    analysis._set_analysis_attributes(fields_dict)
 
-    required_field_fail, attribute_fail = analysis.check_analysis_object()
+    status_list = analysis.check_analysis_object(publish_analysis = publish_boolean)
+    print(status_list)
 
-    assert not required_field_fail
-    assert not attribute_fail
-
-
-def test_check_analysis_object_fail(invalid_field_dict):
-    analysis = OnyxAnalysis()
-    analysis._set_analysis_attributes(invalid_field_dict)
-
-    required_field_fail, attribute_fail = analysis.check_analysis_object()
-
-    assert required_field_fail
-    assert attribute_fail
+    assert status_list == expected_output
 
 
 def test_add_output_location_dir(example_result_dir):
