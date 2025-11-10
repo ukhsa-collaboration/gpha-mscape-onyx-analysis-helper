@@ -74,6 +74,12 @@ def complete_field_dict():
 
 
 @pytest.fixture
+def no_error_log():
+    log = ""
+    return log
+
+
+@pytest.fixture
 def missing_field_dict():
     field_dict = {
         "description": "This is a test analysis",
@@ -276,33 +282,43 @@ def test_write_analysis_to_json(onyx_json_file_path, complete_field_dict):
     assert Path(onyx_json_file_path).exists()
 
 
-def test_check_required_fields_passes(complete_field_dict, caplog):
+@pytest.mark.parametrize(
+    "field_dict,expected_log_message,expected_output",
+    [
+        ("complete_field_dict", "no_error_log", False),
+        ("missing_field_dict", "missing_field_log", True),
+    ],
+)
+def test_check_required_fields(field_dict, expected_log_message, expected_output, request, caplog):
+    field_dict = request.getfixturevalue(field_dict)
+    expected_log_message = request.getfixturevalue(expected_log_message)
+
     analysis = OnyxAnalysis()
-    analysis._set_analysis_attributes(complete_field_dict)
+    analysis._set_analysis_attributes(field_dict)
 
     field_fail = analysis._check_required_fields()
 
-    assert caplog.text == ""
-    assert not field_fail
+    assert all(messages in caplog.text for messages in expected_log_message)
+    assert field_fail == expected_output
 
 
 @pytest.mark.parametrize(
-    "test_input,log_message",
+    "field_dict,expected_log_message,expected_output",
     [
-        ("missing_field_dict", "missing_field_log"),
-        ("missing_output_dict", "missing_output_log"),
-        ("missing_both_dict", "missing_both_log"),
+        ("complete_field_dict", "no_error_log", False),
+        ("missing_output_dict", "missing_output_log", True),
     ],
 )
-def test_check_required_fields_fails(test_input, log_message, request, caplog):
-    fields_dict = request.getfixturevalue(test_input)
-    log_message = request.getfixturevalue(log_message)
+def test_check_required_outputs(field_dict, expected_log_message, expected_output, request, caplog):
+    fields_dict = request.getfixturevalue(field_dict)
+    expected_log_message = request.getfixturevalue(expected_log_message)
 
     analysis = OnyxAnalysis()
     analysis._set_analysis_attributes(fields_dict)
-    analysis._check_required_fields()
+    output_fail = analysis._check_required_outputs()
 
-    assert all(messages in caplog.text for messages in log_message)
+    assert all(messages in caplog.text for messages in expected_log_message)
+    assert output_fail == expected_output
 
 
 def test_read_analysis_from_json_pass(example_onyx_json_file, complete_field_dict):
@@ -339,24 +355,45 @@ def test_check_analysis_attributes_fail(invalid_field_dict, caplog):
     assert attr_fail
 
 
-def test_check_analysis_object_pass(complete_field_dict):
+@pytest.mark.parametrize(
+    "test_input,publish_boolean,expected_output",
+    [
+        pytest.param(
+            "missing_output_dict",
+            False,
+            [False, False],
+            id="Correct input for prepublish analysis object - no errors",
+        ),
+        pytest.param(
+            "missing_both_dict",
+            False,
+            [True, False],
+            id="Incorrect input for prepublish analysis object - missing field fail",
+        ),
+        pytest.param(
+            "complete_field_dict",
+            True,
+            [False, False, False],
+            id="Correct input for publish analysis object - no errors",
+        ),
+        pytest.param(
+            "invalid_field_dict",
+            True,
+            [True, True, False],
+            id="Incorrect input for publish analysis object - missing field and invalid fields fails",
+        ),
+    ],
+)
+def test_check_analysis_object(test_input, publish_boolean, expected_output, request):
+    fields_dict = request.getfixturevalue(test_input)
+
     analysis = OnyxAnalysis()
-    analysis._set_analysis_attributes(complete_field_dict)
+    analysis._set_analysis_attributes(fields_dict)
 
-    required_field_fail, attribute_fail = analysis.check_analysis_object()
+    status_list = analysis.check_analysis_object(publish_analysis=publish_boolean)
+    print(status_list)
 
-    assert not required_field_fail
-    assert not attribute_fail
-
-
-def test_check_analysis_object_fail(invalid_field_dict):
-    analysis = OnyxAnalysis()
-    analysis._set_analysis_attributes(invalid_field_dict)
-
-    required_field_fail, attribute_fail = analysis.check_analysis_object()
-
-    assert required_field_fail
-    assert attribute_fail
+    assert status_list == expected_output
 
 
 def test_add_output_location_dir(example_result_dir):

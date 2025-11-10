@@ -1,6 +1,6 @@
 [project] # Update all fields in this section
 name = "onyx-analysis-helper"
-version = "0.1.0"
+version = "0.2.0"
 description = "Repository containing helper functions to support interactions with onyx analysis tables"
 authors = [{name = "Deborah Greer", email = "deborah.greer@ukhsa.gov.uk"}]
 requires-python = ">=3.12"

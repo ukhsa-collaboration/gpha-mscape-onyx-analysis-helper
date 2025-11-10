@@ -5,34 +5,34 @@ analyses ready for submission to onyx.
 
 ## Installation as standalone code
 
-Clone repo and create environment:
+Clone repo and create environment:  
 `git clone git@github.com:ukhsa-collaboration/onyx-analysis-helper.git`
 
 `conda env create -n mscape_analysis`
 
 `conda activate mscape_analysis`
 
-Installation for users:
+Installation for users:  
 `cd onyx-analysis-helper`
 `pip install .`
 
-Installation for developers (installs code in editable mode):
+Installation for developers (installs code in editable mode):  
 `cd mscape-template`
 `pip install --editable '.[dev]'`
 
 ## Installation in another project
 
 To install the codebase as part of another project, add this to your pyproject.toml
-under [project] dependencies:
-`
+under [project] dependencies:  
+```python
 [project]
 dependencies = ["climb-onyx-client", "onyx-analysis-helper@git+https://github.com/ukhsa-collaboration/onyx-analysis-helper.git"]
-`
+```
 
 ## Usage
 
 Functionality from the repo can be imported into other code after
-installation:
+installation:  
 ```python
 from onyx_analysis_helper import onyx_analysis_helper_functions as oa
 ```
@@ -62,17 +62,38 @@ results_fail = onyx_analysis.add_results(top_result = headline_result, results_d
 # Add climb ID - field is either mscape_records or synthscape_records
 onyx_analysis.add_server_records(sample_id = record_id, server_name = "synthscape")
 
-# Add location of output files. Add report field is single file provided, add outputs field
-# if results directory is provdied.
+# Add location of output files. Add report field if single file provided, add outputs field
+# if results directory is provided
 output_fail = onyx_analysis.add_output_location(result_file)
 
-# Checks all required fields are present and that there are no invalid fields
-required_field_fail, attribute_fail = onyx_analysis.check_analysis_object()
+# Check all required fields are present and that there are no invalid fields.
+# Select publish_analysis = True if you are checking an analysis object ready for
+# publication, publish_analysis = False if you are checking an analysis object that will
+# not be published yet and so will be missing the outputs/report field
+required_field_fail, attribute_fail = onyx_analysis.check_analysis_object(publish_analysis = True)
 
-# Check the fail statuses above and action as appropriate e.g. logging,
-#exit code, raise an error etc:
+# Fail statuses can be checked and actioned as appropriate with e.g. logging, raising an
+# error etc using something like:
 if any([methods_fail, results_fail, output_fail, required_field_fail, attribute_fail]):
-    "Incorrect attribute in analysis object, check logs for details"
+    logging.error("Incorrect attribute in analysis object, check logs for details")
+    exitcode = 1
 else:
-    "Correct attributes in analysis object"
+    logging.info("Correct attributes in analysis object")
+    exitcode = 0
 ```
+
+Example submissions of data to onyx after creating a valid onyx analysis object:
+```python
+# Attempt to add analysis to onyx but don't publish - if successful returns analysis id and exitcode of 0
+analysis_id, exitcode = onyx_analysis.write_analysis_to_onyx(server = "synthscape",
+                                                             dryrun = True,
+                                                             publish_analysis = False)
+
+# Attempt to update an existing analysis (e.g. add report or outputs field) and then publish results
+analysis_id, exitcode = onyx_analysis.update_onyx_analysis(server = "synthscape",
+                                                           analysis_id = "A-123",
+                                                           dryrun = True,
+                                                           publish_analysis = True)
+```
+Note the use of dryrun = True in these examples to do a test upload/update. This option
+should always be used unless code is in production.

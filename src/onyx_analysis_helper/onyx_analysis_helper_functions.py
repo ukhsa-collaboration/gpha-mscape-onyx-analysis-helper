@@ -210,16 +210,20 @@ class OnyxAnalysis:
     # Add in function to set s3 output path, other optional fields
     # Create analysis in Onyx
     @call_to_onyx
-    def write_analysis_to_onyx(self, server: str, dryrun: bool) -> tuple[str, int]:
+    def write_analysis_to_onyx(
+        self, server: str, dryrun: bool, publish_analysis: bool
+    ) -> tuple[str, int]:
         """Attempts to add onyx analysis to object.
         Arguments:
             server -- Server submitting data to
             dryrun -- Specify if test or real upload to onyx
+            publish -- Specify if analysis should be published. Set to true is all fields complete, false if additional fields e.g. outputs needs adding before publication of analysis
         Returns:
             result -- Analysis ID if valid submission, {} if test upload,
                       None if upload fails
             exitcode -- 0 if successful, 1 if fail
         """
+        self.is_published = publish_analysis
 
         with OnyxClient(CONFIG) as client:
             result = client.create_analysis(project=server, fields=vars(self), test=dryrun)
@@ -238,20 +242,32 @@ class OnyxAnalysis:
         return result_file
 
     # Check fields and attributes are valid
-    def check_analysis_object(self) -> tuple[bool, bool]:
-        """Performs checks on analysis object to ensure required fields are
-        present and there are no invalid attributes.
+    def check_analysis_object(self, publish_analysis: bool) -> list[str]:
+        """Performs checks on an analysis object to ensure required fields
+        are present and that there are no invalid attributes. Runs additional
+        check on the outputs being present if analysis is to be published.
         """
-        required_field_fail = self._check_required_fields()
-        attribute_fail = self._check_analysis_attributes()
+        # Set up list to store fail statuses
+        status_list = []
 
-        return required_field_fail, attribute_fail
+        # Check all required fields are present and add status to list
+        required_field_fail = self._check_required_fields()
+        status_list.append(required_field_fail)
+
+        # Check attributes are present and add status to list
+        attribute_fail = self._check_analysis_attributes()
+        status_list.append(attribute_fail)
+
+        # If analysis is to be published, check outputs or report field present
+        if publish_analysis:
+            output_field_fail = self._check_required_outputs()
+            status_list.append(output_field_fail)
+
+        return status_list
 
     def _check_required_fields(self) -> bool:
-        "Checks all required fields are present, returns True is fields missing"
+        "Checks all required fields are present, returns True if fields missing"
         fields_dict = vars(self)
-        required_field_fail = False
-        # Check required fields
         missing_field = False
         required_fields = [
             "analysis_date",
@@ -266,15 +282,19 @@ class OnyxAnalysis:
             logging.error("Missing required fields: %s", missing_fields)
             missing_field = True
 
-        # Check outputs
+        return missing_field
+
+    def _check_required_outputs(self) -> bool:
+        "Checks output field is present, returns True if missing"
+        fields_dict = vars(self)
+        missing_output = False
         output_fields = ["report", "outputs"]
+
         if not any(field in output_fields for field in fields_dict):
             logging.error("Fields dict must contain one of: %s", output_fields)
-            missing_field = True
-        if missing_field:
-            required_field_fail = True
+            missing_output = True
 
-        return required_field_fail
+        return missing_output
 
     def _check_analysis_attributes(self) -> bool:
         "Checks all attributes are valid onyx fields, return True if invalid fields present"
@@ -303,6 +323,7 @@ class OnyxAnalysis:
             "identifiers",
             "synthscape_records",
             "mscape_records",
+            "is_published",
         ]
 
         invalid_attributes = list(analysis_dict.keys() - set(valid_attributes))
@@ -351,3 +372,35 @@ class OnyxAnalysis:
         "Sets class attributes from input dictionary"
         for key, value in analysis_dict.items():
             setattr(self, key, value)
+
+    @call_to_onyx
+    def update_onyx_analysis(
+        self, server: str, analysis_id: str, dryrun: bool, publish_analysis: bool
+    ) -> tuple[str, int]:
+        """Attempts to update an existing onyx analysis with fields in an
+        OnyxAnalysis object.
+        Arguments:
+            server -- Server submitting data to
+            analysis_id -- ID of analysis to be updated
+            dryrun -- Specify if test or real upload to onyx
+            publish -- Specify if analysis should be published. Set to true if all
+            fields complete, false if additional fields e.g. outputs needs adding
+            before publication of analysis
+        Returns:
+            result -- Analysis ID if valid submission, {} if test upload,
+                      None if upload fails
+            exitcode -- 0 if successful, 1 if fail
+        """
+        self.is_published = publish_analysis
+
+        with OnyxClient(CONFIG) as client:
+            result = client.update_analysis(
+                project=server,
+                analysis_id=analysis_id,
+                fields=vars(self),
+                test=dryrun
+        )
+
+        exitcode = 0
+
+        return result, exitcode
