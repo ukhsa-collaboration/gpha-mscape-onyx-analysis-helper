@@ -1,0 +1,145 @@
+#!/usr/bin/env python3
+
+"""
+Module containing functions to assist with the reading of analysis
+objects to and from s3.
+"""
+
+import boto3
+import hashlib
+import logging
+import os
+from botocore.exceptions import ClientError
+from botocore.config import Config
+from functools import wraps
+
+def call_to_s3(func):
+    """Decorator that provides error handling for any calls to s3.
+    If call is successful, returns the result and an exitcode of 0.
+    If call is unsucessful, returns None and an exitcode of 1.
+    """
+    @wraps(func)
+    def call_to_s3_wrapper(*args, **kwargs):
+        try:
+            logging.debug("Attempting connection to s3")
+            result, exitcode = func(*args, **kwargs)
+            logging.debug("Successful connection to s3")
+
+            return result, exitcode
+
+        except ClientError as exc:
+            logging.error("Client error: %s.", exc)
+            result = None
+            exitcode = 1
+
+            return result, exitcode
+        
+        except Exception as exc:
+            logging.error("Unhandled error: %s", exc)
+            result = None
+            exitcode = 1
+            
+            return result, exitcode
+         
+    return call_to_s3_wrapper
+
+def set_up_s3_client(endpoint_url: str="https://s3.climb.ac.uk") -> boto3.client:
+    """Sets up s3 client including config options such as number of retries.
+    Default for endpoint_url can be overridden for testing purposes.
+    Returns an s3 client.
+    """
+    
+    s3_config = Config(
+        retries = {
+            'total_max_attempts': 3,
+            'mode': 'standard'
+        }
+    )
+
+    s3_client = boto3.client("s3", config = s3_config, endpoint_url = endpoint_url)
+
+    return s3_client
+
+@call_to_s3
+def upload_file_to_s3(analysis_id: str, bucket: str,
+                      file_for_upload: os.path, s3_client: boto3.client) -> str:
+    """Uploads a file to s3 bucket using the analysis ID to generate a path
+    Arguments:
+        analysis_id -- Name of analysis in onyx
+        bucket -- Name of bucket in s3
+        file_for_upload -- Analysis file to be uploaded to s3
+        s3_client -- Client for interacting with s3
+    Returns tuple of:
+        s3_uri - Path to object in s3
+        exitcode - Exit status
+    """
+    # Make name for s3 object that includes analysis ID
+    s3_key = _make_s3_key_name(analysis_id, file_for_upload)
+
+    # Upload file
+    response = s3_client.upload_file(file_for_upload, bucket, s3_key)
+    s3_uri = f"s3://{bucket}/{s3_key}"
+    exitcode = 0
+
+    return s3_uri, exitcode
+
+def _make_s3_key_name(analysis_id: str, file_for_upload: os.path) -> str:
+    """Create a key name for the file to be uploaded to s3 that includes
+    the analysis ID and analysis type.
+    Arguments:
+        analysis_id -- Name of analysis in onyx
+        file_for_upload -- Analysis file to be uploaded to s3
+    Returns:
+        s3_key - Name for object in s3
+    """
+    # Get name of file without rest of path
+    upload_file = os.path.basename(file_for_upload)
+
+    # Join with analysis id
+    s3_key = f"{analysis_id}_{upload_file}"
+    
+    return s3_key
+
+def generate_local_sha256sum(file_for_upload: os.path) -> str:
+    """Generates a checksum for local copy of file that will be
+    uploaded. Returns sha256 shecksum"""
+
+    with open(file_for_upload, "rb") as f:
+        digest = hashlib.file_digest(f, "sha256")
+
+    checksum = digest.hexdigest()
+
+    return checksum
+
+@call_to_s3
+def get_s3_checksum(bucket: str, s3_key: str, s3_client: boto3.client):
+    """Retrieves checksum from s3 object metadata. 
+    Arguments:
+        bucket -- Name of bucket in s3 where object is store
+        s3_key -- Name of object in s3
+        s3_client -- Client for interacting with s3
+    Returns tuple of:
+        checksum -- sha256 sum for s3 object
+        exitcode - 0 for success, 1 for failure
+    """
+
+    response = s3_client.head_object(
+        Bucket=bucket,
+        Key=s3_key
+    )
+    checksum = response['ResponseMetadata']['HTTPHeaders']['x-amz-content-sha256']
+    exitcode = 0
+
+    return checksum, exitcode
+
+def check_sha256sums_match(local_checksum, s3_checksum):
+    """Check s3 checksum and local checksum match. Returns
+    exitcode of 0 if checksums match, 1 if they do not.
+    """
+    
+    if local_checksum == s3_checksum:
+        logging.info("Local and s3 checksums match")
+        return 0
+    else:
+        logging.error("Local and s3 checksums do not match")
+        return 1
