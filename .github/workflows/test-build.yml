@@ -27,12 +27,12 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install pandas pyyaml climb-onyx-client
+        pip install pandas pyyaml climb-onyx-client boto3
         if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
     - name: Install code base
       run: pip install .
     - name: Install tests and linter
-      run: pip install ruff pytest pytest-cov regex
+      run: pip install ruff pytest pytest-cov regex moto[s3,server]
     - name: Lint with ruff
       run: |
         # Stop the build if there are Python syntax errors
