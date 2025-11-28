@@ -143,9 +143,7 @@ def test_generate_local_sha256sum(example_result_file, example_result_file_sha25
 
 
 @mock_aws
-def test_get_s3_checksum(s3_client, test_bucket, example_result_file, example_result_file_sha256):
-    s3_client.upload_file(example_result_file, "testbucket", "A-1234_C-123456789_qc_results.json")
-
+def test_get_s3_checksum(s3_client, test_bucket, example_result_file_sha256, s3_file):
     tuple_return = s3f.get_s3_checksum(
         "testbucket", "A-1234_C-123456789_qc_results.json", s3_client
     )
@@ -154,11 +152,7 @@ def test_get_s3_checksum(s3_client, test_bucket, example_result_file, example_re
 
 
 @mock_aws
-def test_get_s3_checksum_error_handling(
-    s3_client, test_bucket, example_result_file, example_result_file_sha256
-):
-    s3_client.upload_file(example_result_file, "testbucket", "A-1234_C-123456789_qc_results.json")
-
+def test_get_s3_checksum_error_handling(s3_client, test_bucket, s3_file):
     tuple_return = s3f.get_s3_checksum("testbucket", "wrongkey", s3_client)
 
     assert tuple_return == (None, 1)
