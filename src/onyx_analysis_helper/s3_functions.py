@@ -146,6 +146,7 @@ def check_sha256sums_match(local_checksum, s3_checksum):
         logging.error("Local and s3 checksums do not match")
         return 1
 
+
 @call_to_s3
 def download_file_from_s3(s3_client: boto3.client, bucket: str, s3_key: str, out_dir: os.path):
     """Downloads object from s3.

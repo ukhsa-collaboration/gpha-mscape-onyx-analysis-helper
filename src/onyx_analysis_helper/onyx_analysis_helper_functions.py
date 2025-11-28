@@ -395,11 +395,8 @@ class OnyxAnalysis:
 
         with OnyxClient(CONFIG) as client:
             result = client.update_analysis(
-                project=server,
-                analysis_id=analysis_id,
-                fields=vars(self),
-                test=dryrun
-        )
+                project=server, analysis_id=analysis_id, fields=vars(self), test=dryrun
+            )
 
         exitcode = 0
 
