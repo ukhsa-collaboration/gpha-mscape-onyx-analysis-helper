@@ -119,7 +119,7 @@ def generate_local_sha256sum(file_for_upload: os.path) -> str:
 def get_s3_checksum(bucket: str, s3_key: str, s3_client: boto3.client):
     """Retrieves checksum from s3 object metadata.
     Arguments:
-        bucket -- Name of bucket in s3 where object is store
+        bucket -- Name of bucket in s3 where object is stored
         s3_key -- Name of object in s3
         s3_client -- Client for interacting with s3
     Returns tuple of:
@@ -145,3 +145,23 @@ def check_sha256sums_match(local_checksum, s3_checksum):
     else:
         logging.error("Local and s3 checksums do not match")
         return 1
+
+@call_to_s3
+def download_file_from_s3(s3_client: boto3.client, bucket: str, s3_key: str, out_dir: os.path):
+    """Downloads object from s3.
+     Arguments:
+        s3_client -- Client for interacting with s3
+        bucket -- Name of bucket in s3 where object is stored
+        s3_key -- Name of object in s3
+        out_dir -- Location to download the file to
+    Returns tuple of:
+        result_file -- Path to downloaded s3 object
+        exitcode - 0 for success, 1 for failure
+    """
+    result_file = Path(out_dir) / f"{s3_key}"
+
+    s3_client.download_file(bucket, s3_key, result_file)
+
+    exitcode = 0
+
+    return result_file, exitcode
