@@ -66,6 +66,17 @@ def example_result_file_sha256():
     return checksum
 
 
+@pytest.fixture
+def s3_file(s3_client, test_bucket, example_result_file):
+    s3_client.upload_file(example_result_file, "testbucket", "A-1234_C-123456789_qc_results.json")
+
+
+@pytest.fixture
+def download_file_path(tmp_path_factory):
+    tmp_dir = tmp_path_factory.mktemp("test_outputs")
+    return str(tmp_dir)
+
+
 # Tests
 def test_make_s3_name(example_result_file):
     s3_key = s3f._make_s3_key_name(analysis_id="A-1234", file_for_upload=example_result_file)
@@ -163,3 +174,22 @@ def test_check_sha256sums_match_fail(example_result_file_sha256):
     result = s3f.check_sha256sums_match(example_result_file_sha256, "incorrectsha256string")
 
     assert result == 1
+
+
+@mock_aws
+def test_download_file_from_s3(s3_client, test_bucket, s3_file, download_file_path):
+    out_file, exitcode = s3f.download_file_from_s3(
+        s3_client, "testbucket", "A-1234_C-123456789_qc_results.json", download_file_path
+    )
+
+    assert out_file.exists()
+    assert exitcode == 0
+
+
+@mock_aws
+def test_download_file_from_s3_error_handling(s3_client, test_bucket, s3_file, download_file_path):
+    tuple_return = s3f.download_file_from_s3(
+        s3_client, "testbucket", "wrongkey", download_file_path
+    )
+
+    assert tuple_return == (None, 1)
