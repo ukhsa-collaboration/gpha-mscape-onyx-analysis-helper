@@ -38,6 +38,13 @@ def call_to_s3(func):
 
             return result, exitcode
 
+        except FileNotFoundError as exc:
+            logging.error("Check file or directory path is correct: %s", exc)
+            result = None
+            exitcode = 1
+
+            return result, exitcode
+
         except Exception as exc:
             logging.error("Unhandled error: %s", exc)
             result = None
