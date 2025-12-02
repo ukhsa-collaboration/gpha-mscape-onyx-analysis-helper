@@ -106,7 +106,7 @@ def _make_s3_key_name(analysis_id: str, file_for_upload: os.path) -> str:
     upload_file = Path(file_for_upload).name
 
     # Join with analysis id
-    s3_key = f"{analysis_id}_{upload_file}"
+    s3_key = f"{analysis_id}/{analysis_id}_{upload_file}"
 
     return s3_key
 
@@ -166,7 +166,8 @@ def download_file_from_s3(s3_client: boto3.client, bucket: str, s3_key: str, out
         result_file -- Path to downloaded s3 object
         exitcode - 0 for success, 1 for failure
     """
-    result_file = Path(out_dir) / f"{s3_key}"
+    s3_key_no_prefix = s3_key.split("/")[-1]
+    result_file = Path(out_dir) / f"{s3_key_no_prefix}"
 
     s3_client.download_file(bucket, s3_key, result_file)
 
