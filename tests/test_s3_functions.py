@@ -185,9 +185,22 @@ def test_download_file_from_s3(s3_client, test_bucket, s3_file, download_file_pa
 
 
 @mock_aws
-def test_download_file_from_s3_error_handling(s3_client, test_bucket, s3_file, download_file_path):
+def test_download_file_from_s3_error_handling(
+    s3_client, test_bucket, s3_file, download_file_path, caplog
+):
     tuple_return = s3f.download_file_from_s3(
         s3_client, "testbucket", "wrongkey", download_file_path
     )
 
     assert tuple_return == (None, 1)
+    assert "Client error" in caplog.text
+
+
+@mock_aws
+def test_download_file_from_s3_error_no_outdir_exists(s3_client, test_bucket, s3_file, caplog):
+    tuple_return = s3f.download_file_from_s3(
+        s3_client, "testbucket", "A-1234/A-1234_C-123456789_qc_results.json", "notadir"
+    )
+
+    assert tuple_return == (None, 1)
+    assert "Check file or directory" in caplog.text
