@@ -156,7 +156,7 @@ def get_s3_checksum(bucket: str, s3_key: str, s3_client: boto3.client, checksum_
     return checksum, exitcode
 
 
-def check_sha256sums_match(local_checksum, s3_checksum):
+def check_checksums_match(local_checksum, s3_checksum):
     """Check s3 checksum and local checksum match. Returns
     exitcode of 0 if checksums match, 1 if they do not.
     """
