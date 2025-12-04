@@ -61,7 +61,14 @@ def example_result_file():
 
 @pytest.fixture
 def example_result_file_sha256():
-    checksum = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    checksum = "ce468c79b716ec9dba66f3cbe88e7182e41692a1120f1040ac7958f077470bac"
+
+    return checksum
+
+
+@pytest.fixture
+def example_result_file_md5():
+    checksum = "64b73b75b60fc4ebf043077bc887bb46"
 
     return checksum
 
@@ -140,19 +147,34 @@ def test_upload_file_to_s3_generic_error_handling(s3_client, test_bucket):
     assert tuple_return == (None, 1)
 
 
-def test_generate_local_sha256sum(example_result_file, example_result_file_sha256):
-    checksum = s3f.generate_local_sha256sum(example_result_file)
+def test_generate_local_checksum_sha256(example_result_file, example_result_file_sha256):
+    checksum = s3f.generate_local_checksum(example_result_file, "sha256")
 
     assert checksum == example_result_file_sha256
 
 
+def test_generate_local_checksum_md5(example_result_file, example_result_file_md5):
+    checksum = s3f.generate_local_checksum(example_result_file, "md5")
+
+    assert checksum == example_result_file_md5
+
+
 @mock_aws
-def test_get_s3_checksum(s3_client, test_bucket, example_result_file_sha256, s3_file):
+def test_get_s3_checksum_sha256(s3_client, test_bucket, example_result_file_sha256, s3_file):
     tuple_return = s3f.get_s3_checksum(
-        "testbucket", "A-1234/A-1234_C-123456789_qc_results.json", s3_client
+        "testbucket", "A-1234/A-1234_C-123456789_qc_results.json", s3_client, "sha256"
     )
 
     assert tuple_return == (example_result_file_sha256, 0)
+
+
+@mock_aws
+def test_get_s3_checksum_etag(s3_client, test_bucket, example_result_file_md5, s3_file):
+    tuple_return = s3f.get_s3_checksum(
+        "testbucket", "A-1234/A-1234_C-123456789_qc_results.json", s3_client, "etag"
+    )
+
+    assert tuple_return == (f"{example_result_file_md5}", 0)
 
 
 @mock_aws
@@ -162,14 +184,14 @@ def test_get_s3_checksum_error_handling(s3_client, test_bucket, s3_file):
     assert tuple_return == (None, 1)
 
 
-def test_check_sha256sums_match_pass(example_result_file_sha256):
-    result = s3f.check_sha256sums_match(example_result_file_sha256, example_result_file_sha256)
+def test_check_checksums_match_pass(example_result_file_sha256):
+    result = s3f.check_checksums_match(example_result_file_sha256, example_result_file_sha256)
 
     assert result == 0
 
 
 def test_check_sha256sums_match_fail(example_result_file_sha256):
-    result = s3f.check_sha256sums_match(example_result_file_sha256, "incorrectsha256string")
+    result = s3f.check_checksums_match(example_result_file_sha256, "incorrectsha256string")
 
     assert result == 1
 
