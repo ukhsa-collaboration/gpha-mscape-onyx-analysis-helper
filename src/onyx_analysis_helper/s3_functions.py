@@ -12,6 +12,7 @@ from functools import wraps
 from pathlib import Path
 
 import boto3
+import regex as re
 from botocore.config import Config
 from botocore.exceptions import ClientError
 
@@ -123,19 +124,33 @@ def generate_local_sha256sum(file_for_upload: os.path) -> str:
 
 
 @call_to_s3
-def get_s3_checksum(bucket: str, s3_key: str, s3_client: boto3.client):
+def get_s3_checksum(bucket: str, s3_key: str, s3_client: boto3.client, checksum_type: str):
     """Retrieves checksum from s3 object metadata.
     Arguments:
         bucket -- Name of bucket in s3 where object is stored
         s3_key -- Name of object in s3
         s3_client -- Client for interacting with s3
+        checksum_type -- Algorithm for checksum
     Returns tuple of:
-        checksum -- sha256 sum for s3 object
+        checksum -- sha256 or etag sum for s3 object, None if error
         exitcode - 0 for success, 1 for failure
     """
-
     response = s3_client.head_object(Bucket=bucket, Key=s3_key)
-    checksum = response["ResponseMetadata"]["HTTPHeaders"]["x-amz-content-sha256"]
+
+    if checksum_type == "sha256":
+        checksum = response["ResponseMetadata"]["HTTPHeaders"]["x-amz-content-sha256"]
+
+    elif checksum_type == "etag":
+        checksum = response["ResponseMetadata"]["HTTPHeaders"]["etag"]
+        # Get md5 from within nested "" in etag
+        checksum = re.search('"(.*)"', checksum).group(1)
+    else:
+        logging.error("Invalid checksum type provided, provide one of sha256 or etag")
+        result = None
+        exitcode = 1
+
+        return result, exitcode
+
     exitcode = 0
 
     return checksum, exitcode
