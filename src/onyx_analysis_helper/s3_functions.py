@@ -112,11 +112,11 @@ def _make_s3_key_name(analysis_id: str, file_for_upload: os.path) -> str:
     return s3_key
 
 
-def generate_local_sha256sum(file_for_upload: os.path) -> str:
+def generate_local_checksum(file_for_upload: os.path, checksum_type: str) -> str:
     """Generates a checksum for local copy of file that will be
-    uploaded. Returns sha256 shecksum"""
+    uploaded. Returns sha256 or md5 checksum"""
     with Path(file_for_upload).open("rb") as file:
-        digest = hashlib.file_digest(file, "sha256")
+        digest = hashlib.file_digest(file, f"{checksum_type}")
 
     checksum = digest.hexdigest()
 
