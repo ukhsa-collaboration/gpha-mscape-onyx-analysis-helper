@@ -20,6 +20,9 @@ Installation for developers (installs code in editable mode):
 `cd mscape-template`
 `pip install --editable '.[dev]'`
 
+Alternatively, install directly into a suitable environment using pip without cloning first:
+`pip install git+ssh://git@github.com/ukhsa-collaboration/gpha-mscape-onyx-analysis-helper.git`
+
 ## Installation in another project
 
 To install the codebase as part of another project, add this to your pyproject.toml
