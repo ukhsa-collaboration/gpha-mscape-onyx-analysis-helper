@@ -9,11 +9,12 @@ WARNING: Using --basetemp on an existing folder will overwrite all files.
 
 import datetime
 from pathlib import Path
+from unittest.mock import patch
 
 import pytest
 import regex as re
 
-from onyx_analysis_helper.onyx_analysis_helper_functions import OnyxAnalysis
+from onyx_analysis_helper import onyx_analysis_helper_functions as oa
 
 
 # Fixtures
@@ -26,7 +27,13 @@ def example_methods():
 
 @pytest.fixture
 def expected_methods_json():
-    methods_json = '{"method1": "method example 1", "method2": "method example 2"}'
+    methods_json = (
+        '{"method1": "method example 1", "method2": "method example 2", '
+        '"versions": ['
+        '{"name": "a_great_tool", "version": "1.0.0"}, '
+        '{"name": "another_great_tool", "version": "2000.0.0"}'
+        "]}"
+    )
 
     return methods_json
 
@@ -64,9 +71,13 @@ def complete_field_dict():
         "upstream_analyses": [],
         "report": "",
         "outputs": "path/to/outputs",
-        "methods": '{"method1": "method example 1", "method2": "method example 2"}',
+        "methods": (
+            '{"method1": "method example 1", "method2": "method example 2", '
+            '"versions": [{"name": "a_great_tool", "version": "1.0.0"}, '
+            '{"name": "another_great_tool", "version": "2000.0.0"}]}'
+        ),
         "result_metrics": '{"Example result 1": 9, "Example reuslt 2": "Fail", "Example result 3": 0.3}',
-        "synthscape_records": ["C-123456789"],
+        "synthscape_records": ["ID-123456789"],
         "identifiers": [],
     }
 
@@ -93,7 +104,7 @@ def missing_field_dict():
         "outputs": "path/to/outputs",
         "methods": '{"method1": "method example 1", "method2": "method example 2"}',
         "result_metrics": '{"Example result 1": 9, "Example reuslt 2": "Fail", "Example result 3": 0.3}',
-        "synthscape_records": ["C-123456789"],
+        "synthscape_records": ["ID-123456789"],
         "identifiers": [],
     }
 
@@ -119,7 +130,7 @@ def missing_output_dict():
         "upstream_analyses": [],
         "methods": '{"method1": "method example 1", "method2": "method example 2"}',
         "result_metrics": '{"Example result 1": 9, "Example result 2": "Fail", "Example result 3": 0.3}',
-        "synthscape_records": ["C-123456789"],
+        "synthscape_records": ["ID-123456789"],
         "identifiers": [],
     }
 
@@ -144,7 +155,7 @@ def missing_both_dict():
         "upstream_analyses": [],
         "methods": '{"method1": "method example 1", "method2": "method example 2"}',
         "result_metrics": '{"Example result 1": 9, "Example reuslt 2": "Fail", "Example result 3": 0.3}',
-        "synthscape_records": ["C-123456789"],
+        "synthscape_records": ["ID-123456789"],
         "identifiers": [],
     }
 
@@ -189,7 +200,7 @@ def invalid_field_dict():
         "outputs": "path/to/outputs",
         "methods": '{"method1": "method example 1", "method2": "method example 2"}',
         "result_metrics": '{"Example result 1": 9, "Example reuslt 2": "Fail", "Example result 3": 0.3}',
-        "synthscape_records": ["C-123456789"],
+        "synthscape_records": ["ID-123456789"],
         "identifiers": [],
     }
 
@@ -205,7 +216,7 @@ def example_result_dir():
 
 @pytest.fixture
 def example_result_file():
-    result_dir = "tests/test_data/C-123456789_qc_results.json"
+    result_dir = "tests/test_data/ID-123456789_qc_results.json"
 
     return result_dir
 
@@ -214,7 +225,7 @@ def example_result_file():
 def test_add_analysis_details():
     expected_name = "example_analysis"
     expected_description = "This is an example analysis."
-    analysis = OnyxAnalysis()
+    analysis = oa.OnyxAnalysis()
     analysis.add_analysis_details(expected_name, expected_description)
 
     assert analysis.name == expected_name
@@ -222,7 +233,7 @@ def test_add_analysis_details():
 
 
 def test_add_analysis_date_no_date():
-    analysis = OnyxAnalysis()
+    analysis = oa.OnyxAnalysis()
     analysis._set_analysis_date()
     print(analysis.analysis_date)
 
@@ -230,8 +241,8 @@ def test_add_analysis_date_no_date():
 
 
 def test_add_analysis_date_already_date():
-    correct_date = "2025-08-21"
-    analysis = OnyxAnalysis()
+    correct_date = datetime.datetime(2025, 8, 21)
+    analysis = oa.OnyxAnalysis()
     analysis.analysis_date = correct_date
     analysis._set_analysis_date()
 
@@ -239,7 +250,7 @@ def test_add_analysis_date_already_date():
 
 
 def test_add_package_metadata():
-    analysis = OnyxAnalysis()
+    analysis = oa.OnyxAnalysis()
     analysis.add_package_metadata("climb-onyx-client")
     version_check = re.fullmatch("[0-9]+\\.[0-9]+\\.[0-9]+", analysis.pipeline_version)
 
@@ -248,16 +259,63 @@ def test_add_package_metadata():
     assert analysis.pipeline_url == "https://github.com/CLIMB-TRE/onyx-client"
 
 
-def test_add_methods(example_methods, expected_methods_json):
-    analysis = OnyxAnalysis()
-    analysis.add_methods(example_methods)
+MOCK_QUERY_RETURN_LIST = [
+    {"name": "a_great_tool", "version": "1.0.0"},
+    {"name": "another_great_tool", "version": "2000.0.0"},
+]
 
-    assert analysis.methods == expected_methods_json
+
+@patch.object(oa, "_get_versions_from_onyx")
+def test_add_methods(mock_method, example_methods, expected_methods_json):
+    """Test that add user methods to the versions onyx returns works."""
+    # mock what the _get_versions_from_onyx function returns:
+    mock_method.return_value = (
+        MOCK_QUERY_RETURN_LIST,
+        0,
+    )
+    analysis = oa.OnyxAnalysis()
+    analysis.add_methods("ID-123456", "synthscape", example_methods)
+    assert analysis.methods == expected_methods_json, (
+        "The analysis methods do not look as expected."
+    )
+    print(f"\nThe methods field correctly looks like: \n{analysis.methods}")
+
+
+@patch.object(oa, "_get_versions_from_onyx")
+def test_add_methods_fail_query(mock_method, example_methods, caplog):
+    """Test if the onyx query fails in some way."""
+    # mock what the _get_versions_from_onyx function returns:
+    mock_method.return_value = (
+        MOCK_QUERY_RETURN_LIST,
+        1,
+    )
+    analysis = oa.OnyxAnalysis()
+    methods_fail = analysis.add_methods("ID-123456", "synthscape", example_methods)
+    assert methods_fail
+    assert "Error: Onyx cannot query sample-ID" in caplog.text
+
+
+@patch.object(oa, "_get_versions_from_onyx")
+def test_add_methods_badly_formatted(mock_method, caplog):
+    """Test if the methods a user provides is not in dict format."""
+    # mock what the _get_versions_from_onyx function returns:
+    mock_method.return_value = (
+        MOCK_QUERY_RETURN_LIST,
+        0,
+    )
+    analysis = oa.OnyxAnalysis()
+    methods_fail = analysis.add_methods(
+        "ID-123456",
+        "synthscape",
+        ["my", "methods"],  # ty:ignore[invalid-argument-type]
+    )
+    assert methods_fail
+    assert "Error: Methods must be in dict format" in caplog.text
 
 
 def test_add_results(example_results, expected_results):
     result = "headline result"
-    analysis = OnyxAnalysis()
+    analysis = oa.OnyxAnalysis()
     analysis.add_results(result, example_results)
 
     assert analysis.result == result
@@ -265,16 +323,15 @@ def test_add_results(example_results, expected_results):
 
 
 def test_add_server_records():
-    sample_id = "C-123456789"
+    sample_id = "ID-123456789"
     server = "synthscape"
-    analysis = OnyxAnalysis()
+    analysis = oa.OnyxAnalysis()
     analysis.add_server_records(sample_id, server)
-
-    assert analysis.synthscape_records == ["C-123456789"]
+    assert analysis.synthscape_records == ["ID-123456789"]  # ty:ignore[unresolved-attribute]
 
 
 def test_write_analysis_to_json(onyx_json_file_path, complete_field_dict):
-    analysis = OnyxAnalysis()
+    analysis = oa.OnyxAnalysis()
     for key, value in complete_field_dict.items():
         setattr(analysis, key, value)
     analysis.write_analysis_to_json(onyx_json_file_path)
@@ -293,7 +350,7 @@ def test_check_required_fields(field_dict, expected_log_message, expected_output
     field_dict = request.getfixturevalue(field_dict)
     expected_log_message = request.getfixturevalue(expected_log_message)
 
-    analysis = OnyxAnalysis()
+    analysis = oa.OnyxAnalysis()
     analysis._set_analysis_attributes(field_dict)
 
     field_fail = analysis._check_required_fields()
@@ -313,7 +370,7 @@ def test_check_required_outputs(field_dict, expected_log_message, expected_outpu
     fields_dict = request.getfixturevalue(field_dict)
     expected_log_message = request.getfixturevalue(expected_log_message)
 
-    analysis = OnyxAnalysis()
+    analysis = oa.OnyxAnalysis()
     analysis._set_analysis_attributes(fields_dict)
     output_fail = analysis._check_required_outputs()
 
@@ -322,14 +379,14 @@ def test_check_required_outputs(field_dict, expected_log_message, expected_outpu
 
 
 def test_read_analysis_from_json_pass(example_onyx_json_file, complete_field_dict):
-    analysis = OnyxAnalysis()
+    analysis = oa.OnyxAnalysis()
     analysis.read_analysis_from_json(example_onyx_json_file)
 
     assert analysis.__dict__ == complete_field_dict
 
 
 def test_set_analysis_attributes(complete_field_dict):
-    analysis = OnyxAnalysis()
+    analysis = oa.OnyxAnalysis()
     analysis._set_analysis_attributes(complete_field_dict)
     print(analysis.__dict__)
 
@@ -337,7 +394,7 @@ def test_set_analysis_attributes(complete_field_dict):
 
 
 def test_check_analysis_attributes_pass(complete_field_dict):
-    analysis = OnyxAnalysis()
+    analysis = oa.OnyxAnalysis()
     analysis._set_analysis_attributes(complete_field_dict)
     attr_fail = analysis._check_analysis_attributes()
 
@@ -345,7 +402,7 @@ def test_check_analysis_attributes_pass(complete_field_dict):
 
 
 def test_check_analysis_attributes_fail(invalid_field_dict, caplog):
-    analysis = OnyxAnalysis()
+    analysis = oa.OnyxAnalysis()
     analysis._set_analysis_attributes(invalid_field_dict)
     attr_fail = analysis._check_analysis_attributes()
 
@@ -387,7 +444,7 @@ def test_check_analysis_attributes_fail(invalid_field_dict, caplog):
 def test_check_analysis_object(test_input, publish_boolean, expected_output, request):
     fields_dict = request.getfixturevalue(test_input)
 
-    analysis = OnyxAnalysis()
+    analysis = oa.OnyxAnalysis()
     analysis._set_analysis_attributes(fields_dict)
 
     status_list = analysis.check_analysis_object(publish_analysis=publish_boolean)
@@ -397,7 +454,7 @@ def test_check_analysis_object(test_input, publish_boolean, expected_output, req
 
 
 def test_add_output_location_dir(example_result_dir):
-    analysis = OnyxAnalysis()
+    analysis = oa.OnyxAnalysis()
     output_fail = analysis.add_output_location(example_result_dir)
 
     assert not output_fail
@@ -405,7 +462,7 @@ def test_add_output_location_dir(example_result_dir):
 
 
 def test_add_output_location_file(example_result_file):
-    analysis = OnyxAnalysis()
+    analysis = oa.OnyxAnalysis()
     output_fail = analysis.add_output_location(example_result_file)
 
     assert not output_fail
@@ -413,7 +470,159 @@ def test_add_output_location_file(example_result_file):
 
 
 def test_add_output_location_invalid():
-    analysis = OnyxAnalysis()
-    output_fail = analysis.add_output_location("not a file path")
+    analysis = oa.OnyxAnalysis()
+    output_fail = analysis.add_output_location(Path("not a file path"))
 
     assert output_fail
+
+
+MOCK_ONYX_RECORD_OLD: dict[str, str] = {
+    "climb-id": "ID-123456",
+    "site": "test",
+    "published_date": "2026-01-01",
+    "classifier_version": "1.0.0",
+    "classifier_db_date": "1970-01-01",
+    "ncbi_taxonomy_date": "1970-01-01",
+    "scylla_version": "1.0.0",
+    "sylph_db_version": "1.0.0",
+    "alignment_db_version": "1.0.0",
+}
+
+MOCK_ONYX_RECORD_NEW: dict[str, str | list[dict[str, str]]] = {
+    "climb-id": "ID-123456",
+    "site": "test",
+    "published_date": "2026-01-01",
+    "versions": [
+        {"name": "classifier_version", "version": "1.0.0"},
+        {"name": "classifier_db_date", "version": "1970-01-01"},
+        {"name": "ncbi_taxonomy_date", "version": "1970-01-01"},
+        {"name": "scylla_version", "version": "1.0.0"},
+        {"name": "sylph_db_version", "version": "1.0.0"},
+        {"name": "alignment_db_version", "version": "1.0.0"},
+        {"name": "new_tool_coming_soon", "version": "0.0.1"},
+    ],
+}
+
+
+@patch("onyx_analysis_helper.onyx_analysis_helper_functions.OnyxClient.get")
+def test___get_versions_from_onyx(mocked_onyx_get, caplog):
+    """
+    Test getting the versions from onyx with the old style - where the versions are across seperate
+    fields. These get combined and reformatted in to the list of dicts.
+    The onyx query (client.get) is mocked.
+    """
+    # mock the onyx query return (the record) - you must mock the OnyxClient (or whatever is being
+    # patched) where it is being imported, not where it is defined
+    mocked_onyx_get.return_value = MOCK_ONYX_RECORD_OLD
+
+    expected_versions_dicts: list[dict[str, str]] = [
+        {"name": "classifier_version", "version": "1.0.0"},
+        {"name": "classifier_db_date", "version": "1970-01-01"},
+        {"name": "ncbi_taxonomy_date", "version": "1970-01-01"},
+        {"name": "scylla_version", "version": "1.0.0"},
+        {"name": "sylph_db_version", "version": "1.0.0"},
+        {"name": "alignment_db_version", "version": "1.0.0"},
+    ]
+
+    actual_versions_dicts, exitcode = oa._get_versions_from_onyx(sample_id="ID-123456", server="")
+
+    assert actual_versions_dicts == expected_versions_dicts
+    assert exitcode == 0
+    print(caplog.text)
+    print(f"Got these versions from Onyx record (mock): {actual_versions_dicts}")
+
+
+@patch("onyx_analysis_helper.onyx_analysis_helper_functions.OnyxClient.get")
+def test___get_versions_from_onyx_add_tools(mocked_onyx_get, caplog):
+    """
+    Test getting the versions from onyx with the old style AND adding two additional package
+    versions.
+    The onyx query (client.get) is mocked.
+    """
+    # mock the onyx query return (the record) - you must mock the OnyxClient (or whatever is being
+    # patched) where it is being imported, not where it is defined
+    mocked_onyx_get.return_value = MOCK_ONYX_RECORD_OLD
+
+    expected_versions_dicts: list[dict[str, str]] = [
+        {"name": "my_package", "version": "1.2.3"},
+        {"name": "my_even_better_package", "version": "3.2.1"},
+        {"name": "classifier_version", "version": "1.0.0"},
+        {"name": "classifier_db_date", "version": "1970-01-01"},
+        {"name": "ncbi_taxonomy_date", "version": "1970-01-01"},
+        {"name": "scylla_version", "version": "1.0.0"},
+        {"name": "sylph_db_version", "version": "1.0.0"},
+        {"name": "alignment_db_version", "version": "1.0.0"},
+    ]
+
+    actual_versions_dicts, exitcode = oa._get_versions_from_onyx(
+        sample_id="ID-123456",
+        server="",
+        tool_versions={"my_package": "1.2.3", "my_even_better_package": "3.2.1"},
+    )
+    assert exitcode == 0
+    assert actual_versions_dicts == expected_versions_dicts
+    print(caplog.text)
+    print(f"Got these versions from Onyx record (mock): {actual_versions_dicts}")
+
+
+@patch("onyx_analysis_helper.onyx_analysis_helper_functions.OnyxClient.get")
+def test___get_versions_from_onyx_new_style(mocked_onyx_get, caplog):
+    """
+    Test getting the versions from onyx with the new style - where all versions are in one
+    field called 'versions', already as a list of dicts like:
+       'versions' = [{'name': 'tool', 'version':'1.0.0'}]
+    The onyx query (client.get) is mocked.
+    """
+    # mock the onyx query return (the record) - you must mock the OnyxClient (or whatever is being
+    # patched) where it is being imported, not where it is defined
+    mocked_onyx_get.return_value = MOCK_ONYX_RECORD_NEW
+
+    expected_versions_dicts: list[dict[str, str]] = [
+        {"name": "classifier_version", "version": "1.0.0"},
+        {"name": "classifier_db_date", "version": "1970-01-01"},
+        {"name": "ncbi_taxonomy_date", "version": "1970-01-01"},
+        {"name": "scylla_version", "version": "1.0.0"},
+        {"name": "sylph_db_version", "version": "1.0.0"},
+        {"name": "alignment_db_version", "version": "1.0.0"},
+        {"name": "new_tool_coming_soon", "version": "0.0.1"},
+    ]
+
+    actual_versions_dicts, exitcode = oa._get_versions_from_onyx(sample_id="ID-123456", server="")
+
+    assert actual_versions_dicts == expected_versions_dicts
+    assert exitcode == 0
+    print(caplog.text)
+    print(f"Got these versions from Onyx record (mock): {actual_versions_dicts}")
+
+
+@patch("onyx_analysis_helper.onyx_analysis_helper_functions.OnyxClient.get")
+def test___get_versions_from_onyx_new_style_with_additions(mocked_onyx_get, caplog):
+    """
+    Test getting the versions from onyx with the new style AND adds two additional package versions.
+    The onyx query (client.get) is mocked.
+    """
+    # mock the onyx query return (the record) - you must mock the OnyxClient (or whatever is being
+    # patched) where it is being imported, not where it is defined
+    mocked_onyx_get.return_value = MOCK_ONYX_RECORD_NEW
+
+    expected_versions_dicts: list[dict[str, str]] = [
+        {"name": "my_package", "version": "1.2.3"},
+        {"name": "my_even_better_package", "version": "3.2.1"},
+        {"name": "classifier_version", "version": "1.0.0"},
+        {"name": "classifier_db_date", "version": "1970-01-01"},
+        {"name": "ncbi_taxonomy_date", "version": "1970-01-01"},
+        {"name": "scylla_version", "version": "1.0.0"},
+        {"name": "sylph_db_version", "version": "1.0.0"},
+        {"name": "alignment_db_version", "version": "1.0.0"},
+        {"name": "new_tool_coming_soon", "version": "0.0.1"},
+    ]
+
+    actual_versions_dicts, exitcode = oa._get_versions_from_onyx(
+        sample_id="ID-123456",
+        server="",
+        tool_versions={"my_package": "1.2.3", "my_even_better_package": "3.2.1"},
+    )
+    assert actual_versions_dicts == expected_versions_dicts
+    assert exitcode == 0
+    print(caplog.text)
+    print(f"Got these versions from Onyx record (mock): {actual_versions_dicts}")
