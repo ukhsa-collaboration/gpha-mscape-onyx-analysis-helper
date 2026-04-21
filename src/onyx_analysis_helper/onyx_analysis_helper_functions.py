@@ -121,8 +121,13 @@ def _get_versions_from_onyx(
 ) -> tuple[list[dict[str, str | None]], int]:
     """
     Get the various database and tool versions from Onyx.
-    Note the 'else' is only required if the column 'versions' does not exist in Onyx. Once it does,
-    this 'else' statement is superfluous.
+
+    # TODO:
+    Remove if statement.
+    There is an if statement to check if all versions are in one Onyx field. Note the 'else' is then
+    only required if this does not exist in Onyx, so cnce it does, this 'else' statement is
+    superfluous.
+
     Arguments:
             sample_id -- valid climb id.
             server_name -- name of server to query.
