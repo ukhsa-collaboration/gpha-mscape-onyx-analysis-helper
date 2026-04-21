@@ -116,9 +116,7 @@ def call_to_onyx(func):
 
 # Functions
 @call_to_onyx
-def _get_versions_from_onyx(
-    sample_id: str, server: str, tool_versions: dict | None = None
-) -> tuple[list[dict[str, str | None]], int]:
+def _get_versions_from_onyx(sample_id: str, server: str) -> tuple[list[dict[str, str | None]], int]:
     """
     Get the various database and tool versions from Onyx.
 
@@ -131,8 +129,6 @@ def _get_versions_from_onyx(
     Arguments:
             sample_id -- valid climb id.
             server_name -- name of server to query.
-            tool_versions -- optional other versions to put into the versions dict in the methods.
-                Must be in format {'tool_name': 'version'}
         Returns:
             versions_dicts -- list of dicts, where the dict contains "name" and "version".
                 e.g. [{"name": "tool", "version": "1.2.3"}, {"name": "db", "version": "2.3.4"}]
@@ -144,11 +140,6 @@ def _get_versions_from_onyx(
         record: dict = client.get(project=server, climb_id=sample_id)
 
         versions_dicts: list[dict[str, str | None]] = []
-
-        # Add any additional tool or database versions that need to go into the analysis table.
-        if tool_versions:
-            for tool, version in tool_versions.items():
-                versions_dicts.append({"name": tool, "version": version})
 
         # Add a little check that the versions column in the db is as expected:
         if (
@@ -183,7 +174,7 @@ class OnyxAnalysis:
         self.pipeline_url: str
         self.pipeline_version: str
         self.pipeline_command: str | None
-        self.methods: str
+        self.methods: dict[str, list[dict[str, str | None]]]
         self.result: str
         self.result_metrics: str
         self.report: Path | None
@@ -213,40 +204,82 @@ class OnyxAnalysis:
         self,
         sample_id: str,
         server_name: str,
-        methods_dict: dict,
         tool_versions: dict | None = None,
     ) -> bool:
         """
-        Prepopulates the methods dict with the versions from onyx, adds in any additional
-        tool_versions supplied, then appends methods to onyx analysis object. If methods_dict are
-        invalid, returns methods_fail.
+        Queries Onyx for various predefined tool and database versions, and populates the methods
+        dict. Also added in any additional tool_versions supplied.
+
         Arguments:
             sample_id -- valid climb id.
             server_name -- name of server to query.
-            methods_dict -- dictionary of methods to be stored in the analysis table
-                e.g. - thresholds used for the tool.
             tool_versions -- optional; dict of other versions to put into the versions dict in the
                 methods. Must be in format {'tool_name': 'version'}
         Returns:
             methods_fail -- bool, False if successful, True if fail
         """
-        versions_dicts, exitcode = _get_versions_from_onyx(
-            sample_id=sample_id, server=server_name, tool_versions=tool_versions
-        )
+        methods_fail = False
+
+        # First prepopulate the methods dict.
+        versions_dicts, exitcode = _get_versions_from_onyx(sample_id=sample_id, server=server_name)
 
         if exitcode != 0:
             logging.error(
                 "Error: Onyx cannot query sample-ID for versions to pre-populate the methods dict."
             )
-            return True
-        if isinstance(methods_dict, dict):
-            methods_dict["versions"] = versions_dicts
-            self.methods: str = json.dumps(methods_dict)
-            methods_fail = False
-        else:
-            logging.error("Error: Methods must be in dict format")
             methods_fail = True
+            return methods_fail
 
+        # Add any additional tool or database versions that need to go into the analysis table.
+        if tool_versions:
+            for tool, version in tool_versions.items():
+                versions_dicts.append({"name": tool, "version": version})
+
+        self.methods: dict[str, dict] = {"versions": versions_dicts}
+        # methods did not fail
+        return methods_fail
+
+    def add_other_methods(self, methods_dict: dict) -> bool:
+        """
+        CANNOT USE BEFORE SETTING METHOD ATTRIBUTE WITH add_methods().
+
+        Attempts to add methods to existing onyx analysis object. If methods are invalid, returns
+        methods_fail.
+
+        Arguments:
+            method_dicts: dict containing methods to add. Recommended to be nested.
+                e.g.: {"thresholds": {"cutoff": 1, "limit": 2}}.
+                If the first key is 'versions', this will append to the exisiting 'versions' dict
+                in the methods attribute. The inner dict must then look like this:
+                e.g.: {"versions": {"name": "thing_to_version", "version": "1.2.3"}}
+        Returns:
+            methods_fail: true if fail, check logging message.
+        """
+        methods_fail = False
+        # methods attribute has to be available.
+        if not hasattr(self, "methods"):
+            logging.error("Error: instance has no 'methods' attribute. Use add_methods() first.")
+            methods_fail = True
+            return methods_fail
+
+        if not isinstance(methods_dict, dict):
+            logging.error("Error: Methods must be in dict format.")
+            methods_fail = True
+            return methods_fail
+
+        for method_name, method_params in methods_dict.items():
+            if method_name == "versions":  # avoid overwriting 'versions'
+                if "name" not in method_params or "version" not in method_params:
+                    methods_fail = True
+                    logging.error(
+                        "Error: Trying to append versions in method attribute, but "
+                        "provided methods_dict does not contain 'name' and 'versions'."
+                    )
+                    return methods_fail
+                self.methods["versions"].append(method_params)
+                return methods_fail
+
+            self.methods[method_name] = method_params
         return methods_fail
 
     def add_results(self, top_result: str, results_dict: dict) -> bool:
