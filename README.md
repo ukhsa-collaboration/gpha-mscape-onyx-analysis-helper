@@ -5,18 +5,18 @@ analyses ready for submission to onyx.
 
 ## Installation as standalone code
 
-Clone repo and create environment:  
+Clone repo and create environment:
 `git clone git@github.com:ukhsa-collaboration/onyx-analysis-helper.git`
 
 `conda env create -n mscape_analysis`
 
 `conda activate mscape_analysis`
 
-Installation for users:  
+Installation for users:
 `cd onyx-analysis-helper`
 `pip install .`
 
-Installation for developers (installs code in editable mode):  
+Installation for developers (installs code in editable mode):
 `cd mscape-template`
 `pip install --editable '.[dev]'`
 
@@ -26,7 +26,7 @@ Alternatively, install directly into a suitable environment using pip without cl
 ## Installation in another project
 
 To install the codebase as part of another project, add this to your pyproject.toml
-under [project] dependencies:  
+under [project] dependencies:
 ```python
 [project]
 dependencies = ["climb-onyx-client", "onyx-analysis-helper@git+https://github.com/ukhsa-collaboration/onyx-analysis-helper.git"]
@@ -35,7 +35,7 @@ dependencies = ["climb-onyx-client", "onyx-analysis-helper@git+https://github.co
 ## Usage
 
 Functionality from the repo can be imported into other code after
-installation:  
+installation:
 ```python
 from onyx_analysis_helper import onyx_analysis_helper_functions as oa
 ```
@@ -55,8 +55,15 @@ onyx_analysis.add_analysis_details(
 # Add package metadata - takes from package name if code base is pip installed
 onyx_analysis.add_package_metadata(package_name = "package-name-here")
 
-# Add methods information e.g. QC thresholds used. Must be in dictionary format
-methods_fail = onyx_analysis.add_methods(methods_dict = example_thresholds)
+# Add methods information. First the methods field is pre-populated with versions already stored in
+# Onyx, therefore the sample ID and server name are required. Then provide the methods dict
+# e.g. QC thresholds used, must be in dictionary format. Any other tools, databases, packages,
+# dependencies etc with versions that need to be recorded are added as a dictionary here (optional).
+methods_fail = onyx_analysis.add_methods(
+    sample_id = "ID_123456",
+    server_name = "scape",
+    methods_dict = example_thresholds,
+    tool_versions = {'my_dependency_version': pkg.__version__})
 
 # Add results information e.g. QC results. Must be in dictionary format. More detailed
 # results to be added in output files/report.
