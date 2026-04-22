@@ -176,7 +176,7 @@ class OnyxAnalysis:
         self.pipeline_command: str | None
         self.methods: dict[str, list[dict[str, str | None]]]
         self.result: str
-        self.result_metrics: str
+        self.result_metrics: dict
         self.report: Path | None
         self.outputs: Path | None
         self.upstream_analyses: str | None
@@ -288,7 +288,7 @@ class OnyxAnalysis:
         """
         if isinstance(results_dict, dict):
             self.result = top_result
-            self.result_metrics = json.dumps(results_dict)
+            self.result_metrics: dict = results_dict
             results_fail = False
         else:
             logging.error("Error: result_metrics must be in dict format")
@@ -352,6 +352,9 @@ class OnyxAnalysis:
     def write_analysis_to_json(self, result_file: Path) -> Path | None:
         "Writes onyx analysis object to json"
         fields_dict = vars(self)
+        # make sure all attributes are json strings:
+        fields_dict["methods"] = json.dumps(self.methods)
+        fields_dict["result_metrics"] = json.dumps(self.result_metrics)
 
         with Path(result_file).open("w") as file:
             json.dump(fields_dict, file)
@@ -488,6 +491,8 @@ class OnyxAnalysis:
     def _set_analysis_attributes(self, analysis_dict: dict) -> None:
         "Sets class attributes from input dictionary"
         for key, value in analysis_dict.items():
+            if key == "result_metrics" or key == "methods":
+                value = json.loads(value)  # these need loading into dict type.
             setattr(self, key, value)
 
     @call_to_onyx
