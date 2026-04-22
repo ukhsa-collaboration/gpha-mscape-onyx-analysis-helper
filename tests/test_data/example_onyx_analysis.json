@@ -9,8 +9,8 @@
     "upstream_analyses": [],
     "report": "",
     "outputs": "path/to/outputs",
-    "methods": "{\"method1\": \"method example 1\", \"method2\": \"method example 2\", \"versions\": [{\"name\": \"a_great_tool\", \"version\": \"1.0.0\"}, {\"name\": \"another_great_tool\", \"version\": \"2000.0.0\"}]}",
-    "result_metrics": "{\"Example result 1\": 9, \"Example reuslt 2\": \"Fail\", \"Example result 3\": 0.3}",
+    "methods": "{\"versions\": [{\"name\": \"a_great_tool\", \"version\": \"1.0.0\"}, {\"name\": \"another_great_tool\", \"version\": \"2000.0.0\"}], \"thresholds\": {\"limit\": 10}, \"method2\": \"method example 2\"}",
+    "result_metrics": "{\"Example result 1\": 9, \"Example result 2\": \"Fail\", \"Example result 3\": 0.3}",
     "synthscape_records": [
         "ID-123456789"
     ],
