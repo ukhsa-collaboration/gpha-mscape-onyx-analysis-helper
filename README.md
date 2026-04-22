@@ -55,15 +55,51 @@ onyx_analysis.add_analysis_details(
 # Add package metadata - takes from package name if code base is pip installed
 onyx_analysis.add_package_metadata(package_name = "package-name-here")
 
-# Add methods information. First the methods field is pre-populated with versions already stored in
-# Onyx, therefore the sample ID and server name are required. Then provide the methods dict
-# e.g. QC thresholds used, must be in dictionary format. Any other tools, databases, packages,
-# dependencies etc with versions that need to be recorded are added as a dictionary here (optional).
+# Add methods information. You must run add_methods first. The onyx_analysis.methods attribute holds
+# a dictionary. First an onyx query gets predefined versions from the database and populates the
+# "versions" key in the methods dictionary. Any additional 'tool_versions' given are also
+# added to this.
 methods_fail = onyx_analysis.add_methods(
     sample_id = "ID_123456",
     server_name = "scape",
-    methods_dict = example_thresholds,
-    tool_versions = {'my_dependency_version': pkg.__version__})
+    tool_versions = {'my_dependency_version': pkg.__version__})  # this is optional
+
+        # What does that now look like?
+        {"methods": {
+            "versions": [
+                {"name": "database_from_onyx", "version": "1.0.0"},
+                {"name": "my_pkg_dependency", "version": "0.0.0"}
+            ]
+            }
+        }
+
+# Any additional methods can now be added to the method attribute. You must provide the methods_dict
+# as a dict. With the example below, thresholds will then be added to the methods dict like this:
+
+other_methods_fail = onyx_analysis.add_other_methods(
+    methods_dict={
+        "thresholds": {"limit": 10, "filter": 5}
+    }
+)
+
+        # Waht does this now look like?
+        {"methods": {
+            "versions": [
+                {"name": "database_from_onyx", "version": "1.0.0"},
+                {"name": "my_pkg_dependency", "version": "0.0.0"}
+            ],
+            "thresholds": {"limit": 10, "filter": 5}
+            }
+        }
+
+# Note that if you provide 'versions' as the key in your methods_dict argument to the method, it
+# will not overwrite the versions already there, but append to that dict. You must provide "name"
+# and "version" in the methods_dict arg, like this:
+other_methods_fail = onyx_analysis.add_other_methods(
+    methods_dict={
+        "versions": {"name": "my_tool", "version": "1.0.0"}
+    }
+)
 
 # Add results information e.g. QC results. Must be in dictionary format. More detailed
 # results to be added in output files/report.
@@ -84,7 +120,7 @@ required_field_fail, attribute_fail = onyx_analysis.check_analysis_object(publis
 
 # Fail statuses can be checked and actioned as appropriate with e.g. logging, raising an
 # error etc using something like:
-if any([methods_fail, results_fail, output_fail, required_field_fail, attribute_fail]):
+if any([methods_fail, other_methods_fail, results_fail, output_fail, required_field_fail, attribute_fail]):
     logging.error("Incorrect attribute in analysis object, check logs for details")
     exitcode = 1
 else:
