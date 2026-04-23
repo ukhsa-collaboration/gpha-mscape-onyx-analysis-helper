@@ -6,6 +6,7 @@ analyses ready for submission to onyx.
 ## Installation as standalone code
 
 Clone repo and create environment:
+
 `git clone git@github.com:ukhsa-collaboration/onyx-analysis-helper.git`
 
 `conda env create -n mscape_analysis`
@@ -13,23 +14,28 @@ Clone repo and create environment:
 `conda activate mscape_analysis`
 
 Installation for users:
+
 `cd onyx-analysis-helper`
+
 `pip install .`
 
 Installation for developers (installs code in editable mode):
+
 `cd mscape-template`
+
 `pip install --editable '.[dev]'`
 
 Alternatively, install directly into a suitable environment using pip without cloning first:
+
 `pip install git+ssh://git@github.com/ukhsa-collaboration/gpha-mscape-onyx-analysis-helper.git`
 
 ## Installation in another project
 
 To install the codebase as part of another project, add this to your pyproject.toml
-under [project] dependencies:
+under [project] dependencies - you should pin a version you have built and tested with:
 ```python
 [project]
-dependencies = ["climb-onyx-client", "onyx-analysis-helper@git+https://github.com/ukhsa-collaboration/onyx-analysis-helper.git"]
+dependencies = ["climb-onyx-client", "onyx-analysis-helper@git+https://github.com/ukhsa-collaboration/onyx-analysis-helper.git@1.0.0"]
 ```
 
 ## Usage
@@ -55,51 +61,62 @@ onyx_analysis.add_analysis_details(
 # Add package metadata - takes from package name if code base is pip installed
 onyx_analysis.add_package_metadata(package_name = "package-name-here")
 
-# Add methods information. You must run add_methods first. The onyx_analysis.methods attribute holds
-# a dictionary. First an onyx query gets predefined versions from the database and populates the
-# "versions" key in the methods dictionary. Any additional 'tool_versions' given are also
-# added to this.
+# Add methods information. The onyx_analysis.methods attribute holds
+# a dictionary and is populated with two distinct methods. If you want to add commands, thresholds
+# or any other information, use add_methods and supply a dictionary of items to add:
 methods_fail = onyx_analysis.add_methods(
-    sample_id = "ID_123456",
-    server_name = "scape",
-    tool_versions = {'my_dependency_version': pkg.__version__})  # this is optional
+    methods_dict={
+        "thresholds": {"limit": 10, "filter": 5},
+        "command": "my_command.sh --args"
+    }
+)
 
-        # What does that now look like?
+        # What will 'methods' now look like in the analysis table?
+            {"methods": {
+                "thresholds": {"limit": 10, "filter": 5},
+                "command": "my_command.sh --args"
+                }
+            }
+
+# If you want to add any versions of anything, you must use the "add_versions_to_methods" method.
+# This can be used without using add_methods beforehand. In this example, the above code runs first:
+methods_versions_fail = onyx_analysis.add_versions_to_methods(
+    tool_versions = {"my_dependency_version": pkg.__version__, "other_tool": "2.0.0"})
+
+        # What will methods now look like?
         {"methods": {
+            "thresholds": {"limit": 10, "filter": 5},
+            "command": "my_command.sh --args"
             "versions": [
-                {"name": "database_from_onyx", "version": "1.0.0"},
-                {"name": "my_pkg_dependency", "version": "0.0.0"}
+                {"name": "my_dependency_version", "version": "1.0.0"},
+                {"name": "other_tool", "version": "2.0.0"}
             ]
             }
         }
 
-# Any additional methods can now be added to the method attribute. You must provide the methods_dict
-# as a dict. With the example below, thresholds will then be added to the methods dict like this:
+# If you want to include versions that are stored in Onyx, use the same method and set
+# 'include_onyx_versions' to True, and provide a valid climb_id and server_name. You can also give
+# additional tool_versions here aswell:
+methods_versions_fail = onyx_analysis.add_versions_to_methods(
+        include_onyx_versions = True,
+        sample_id = "ID_11111"
+        server_name = "server",
+        # this is optional:
+        tool_versions = {"my_dependency_version": pkg.__version__, "other_tool": "2.0.0"}
+   )
 
-other_methods_fail = onyx_analysis.add_other_methods(
-    methods_dict={
-        "thresholds": {"limit": 10, "filter": 5}
-    }
-)
-
-        # Waht does this now look like?
+        # What does this now look like?
         {"methods": {
+            "thresholds": {"limit": 10, "filter": 5},
+            "command": "my_command.sh --args"
             "versions": [
+                {"name": "my_dependency_version", "version": "1.0.0"},
+                {"name": "other_tool", "version": "2.0.0"}
                 {"name": "database_from_onyx", "version": "1.0.0"},
-                {"name": "my_pkg_dependency", "version": "0.0.0"}
+                {"name": "tool_version_from_onyx", "version": "1.0.0"}
             ],
-            "thresholds": {"limit": 10, "filter": 5}
             }
         }
-
-# Note that if you provide 'versions' as the key in your methods_dict argument to the method, it
-# will not overwrite the versions already there, but append to that dict. You must provide "name"
-# and "version" in the methods_dict arg, like this:
-other_methods_fail = onyx_analysis.add_other_methods(
-    methods_dict={
-        "versions": {"name": "my_tool", "version": "1.0.0"}
-    }
-)
 
 # Add results information e.g. QC results. Must be in dictionary format. More detailed
 # results to be added in output files/report.
@@ -120,7 +137,7 @@ required_field_fail, attribute_fail = onyx_analysis.check_analysis_object(publis
 
 # Fail statuses can be checked and actioned as appropriate with e.g. logging, raising an
 # error etc using something like:
-if any([methods_fail, other_methods_fail, results_fail, output_fail, required_field_fail, attribute_fail]):
+if any([methods_fail, methods_versions_fail, results_fail, output_fail, required_field_fail, attribute_fail]):
     logging.error("Incorrect attribute in analysis object, check logs for details")
     exitcode = 1
 else:
