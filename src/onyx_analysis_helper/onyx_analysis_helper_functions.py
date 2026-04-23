@@ -174,7 +174,7 @@ class OnyxAnalysis:
         self.pipeline_url: str
         self.pipeline_version: str
         self.pipeline_command: str | None
-        self.methods: dict[str, list[dict[str, str | None]]]
+        self.methods: dict[str, list[dict[str, str | None]]] = {}
         self.result: str
         self.result_metrics: dict
         self.report: Path | None
@@ -200,67 +200,101 @@ class OnyxAnalysis:
             1
         ]  # Get url from toml - add to template
 
-    def add_methods(
+    def add_versions_to_methods(
         self,
-        sample_id: str,
-        server_name: str,
+        include_onyx_versions: bool = False,
+        sample_id: str | None = None,
+        server_name: str | None = None,
         tool_versions: dict | None = None,
     ) -> bool:
         """
-        Queries Onyx for various predefined tool and database versions, and populates the methods
-        dict. Also added in any additional tool_versions supplied.
+        Method to add versions to the methods field in the analysis table.
+
+        If Onyx versions are to be included, use 'include_onyx_versions = True', and 'sample_id' and
+        'server_name' MUST be supplied. This will then query Onyx for various predefined tool and
+        database versions, and populates the methods dict.
+
+        If other versions are to be added to the methods field, supply a dict to "tool_versions"
+        in the format {'tool_name': 'version'}. This will then be put into the correct format.
+
+        Choose one or both of these.
 
         Arguments:
-            sample_id -- valid climb id.
-            server_name -- name of server to query.
-            tool_versions -- optional; dict of other versions to put into the versions dict in the
+            include_onyx_versions -- default is False, set to True if onyx versions should be
+                included.
+            sample_id -- Optional (required if 'include_onyx_versions' is True). Valid climb id.
+            server_name -- Optional (required if 'include_onyx_versions' is True). Name of server to
+                query.
+            tool_versions -- Optional; dict of other versions to put into the versions dict in the
                 methods. Must be in format {'tool_name': 'version'}
         Returns:
-            methods_fail -- bool, False if successful, True if fail
+            methods_fail -- bool, False if successful, True if fail - check logs.
         """
         methods_fail = False
 
-        # First prepopulate the methods dict.
-        versions_dicts, exitcode = _get_versions_from_onyx(sample_id=sample_id, server=server_name)
-
-        if exitcode != 0:
-            logging.error(
-                "Error: Onyx cannot query sample-ID for versions to pre-populate the methods dict."
-            )
-            methods_fail = True
+        # There is a possibility that this method does nothing:
+        if not include_onyx_versions and not tool_versions:
+            logging.warning("Warning: No suitable arguments provided, this method does nothing.")
             return methods_fail
 
-        # Add any additional tool or database versions that need to go into the analysis table.
+        versions_dicts: list = []
+
+        if include_onyx_versions:
+            # Check if sample_id and server_name are supplied
+            if not sample_id or not server_name:
+                logging.error(
+                    "Error: 'include_onyx_versions' requires sample_id and server_name as arguments."
+                )
+                methods_fail = True
+                return methods_fail
+
+            # populate the methods dict with the versions from the onyx query.
+            onyx_versions, exitcode = _get_versions_from_onyx(
+                sample_id=sample_id, server=server_name
+            )
+
+            if exitcode != 0:
+                logging.error(
+                    "Error: Onyx cannot query sample-ID for versions to pre-populate the methods dict."
+                )
+                methods_fail = True
+                return methods_fail
+
+            # Append those onyx versions
+            versions_dicts.extend(onyx_versions)
+
+        # Add any additional versions that need to go into the analysis table. Must be dict.
         if tool_versions:
+            if not isinstance(tool_versions, dict):
+                logging.error("Error: tool_versions must be in dict format: e.g. {'tool': '1.0.0'}")
+                methods_fail = True
+                return methods_fail
+
             for tool, version in tool_versions.items():
                 versions_dicts.append({"name": tool, "version": version})
 
-        self.methods: dict[str, dict] = {"versions": versions_dicts}
+        # Add versions_dicts to the analysis table
+        self.methods["versions"] = versions_dicts
         # methods did not fail
         return methods_fail
 
-    def add_other_methods(self, methods_dict: dict) -> bool:
+    def add_methods(self, methods_dict: dict) -> bool:
         """
-        CANNOT USE BEFORE SETTING METHOD ATTRIBUTE WITH add_methods().
-
-        Attempts to add methods to existing onyx analysis object. If methods are invalid, returns
+        Attempts to add methods to onyx analysis object. If methods are invalid, returns
         methods_fail.
 
+        DO NOT provide 'versions' with this method, use add_versions_to_methods instead.
+
         Arguments:
-            method_dicts: dict containing methods to add. Recommended to be nested.
-                e.g.: {"thresholds": {"cutoff": 1, "limit": 2}}.
-                If the first key is 'versions', this will append to the exisiting 'versions' dict
-                in the methods attribute. The inner dict must then look like this:
-                e.g.: {"versions": {"name": "thing_to_version", "version": "1.2.3"}}
+            method_dicts: dict containing methods to add. Recommended to be nested but doesn't have
+            to be.
+                e.g.: {"thresholds": {"cutoff": 1, "limit": 2}} or {"command": "tool --defaults"}
+                or a combination of both.
+
         Returns:
             methods_fail: true if fail, check logging message.
         """
         methods_fail = False
-        # methods attribute has to be available.
-        if not hasattr(self, "methods"):
-            logging.error("Error: instance has no 'methods' attribute. Use add_methods() first.")
-            methods_fail = True
-            return methods_fail
 
         if not isinstance(methods_dict, dict):
             logging.error("Error: Methods must be in dict format.")
@@ -268,17 +302,16 @@ class OnyxAnalysis:
             return methods_fail
 
         for method_name, method_params in methods_dict.items():
-            if method_name == "versions":  # avoid overwriting 'versions'
-                if "name" not in method_params or "version" not in method_params:
-                    methods_fail = True
-                    logging.error(
-                        "Error: Trying to append versions in method attribute, but "
-                        "provided methods_dict does not contain 'name' and 'versions'."
+            if "version" in method_name:
+                logging.error(
+                    (  # noqa: UP031
+                        "Error: Cannot add '%s' to the methods field with add_methods. "
+                        "Use add_versions_to_methods to add versions."
                     )
-                    return methods_fail
-                self.methods["versions"].append(method_params)
+                    % (method_name)
+                )
+                methods_fail = True
                 return methods_fail
-
             self.methods[method_name] = method_params
         return methods_fail
 
