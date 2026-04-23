@@ -543,10 +543,32 @@ def test___get_versions_from_onyx_new_style(mocked_onyx_get, caplog):
     print(f"Got these versions from Onyx record (mock): {actual_versions_dicts}")
 
 
+def test_add_versions_to_methods_null_args(caplog):
+    """Test that not providing any args does not fail but gives warning."""
+    analysis = oa.OnyxAnalysis()
+    methods_fail = analysis.add_versions_to_methods()
+    assert not methods_fail
+    assert "Warning: No suitable arguments provided" in caplog.text
+
+
+@pytest.mark.parametrize(
+    "sample_id,server_name", [(None, "server"), ("ID-123456", None), (None, None)]
+)
+def test_add_versions_to_methods_no_sample_id_or_server_name(sample_id, server_name, caplog):
+    """Test that not providing any of sample_id or server_name or neither logs an error."""
+    analysis = oa.OnyxAnalysis()
+    methods_fail = analysis.add_versions_to_methods(
+        include_onyx_versions=True, sample_id=sample_id, server_name=server_name
+    )
+    assert methods_fail
+    assert "Error" in caplog.text
+
+
 @patch("onyx_analysis_helper.onyx_analysis_helper_functions.OnyxClient.get")
-def test_add_methods(mock_method, caplog):
+def test_add_versions_to_methods(mock_method, caplog):
     """
-    Test that add_methods functions gets the versions from the query and populates the attribute.
+    Test that add_methods functions gets the versions from the query when set to true and populates
+    the attribute.
     """
     # mock what the _get_versions_from_onyx function returns:
     mock_method.return_value = MOCK_ONYX_RECORD_OLD
@@ -563,7 +585,9 @@ def test_add_methods(mock_method, caplog):
     }
 
     analysis = oa.OnyxAnalysis()
-    methods_fail = analysis.add_methods("ID-123456", "synthscape")
+    methods_fail = analysis.add_versions_to_methods(
+        include_onyx_versions=True, sample_id="ID-123456", server_name="synthscape"
+    )
     print(caplog.text)
     assert analysis.methods == expected_results, "The analysis methods do not look as expected."
     assert not methods_fail
@@ -571,10 +595,10 @@ def test_add_methods(mock_method, caplog):
 
 
 @patch("onyx_analysis_helper.onyx_analysis_helper_functions.OnyxClient.get")
-def test_add_methods_plus_tools(mock_method, caplog):
+def test_add_versions_to_methods_plus_tools(mock_method, caplog):
     """
-    Test that add_methods functions gets the versions from the query and adds user defined tool
-    versions and then populates the attribute.
+    Test that add_methods functions gets the versions from the query when set to true and adds
+    user defined tool versions and then populates the attribute.
     """
     # mock what the _get_versions_from_onyx function returns:
     mock_method.return_value = MOCK_ONYX_RECORD_OLD
@@ -592,8 +616,11 @@ def test_add_methods_plus_tools(mock_method, caplog):
     }
 
     analysis = oa.OnyxAnalysis()
-    methods_fail = analysis.add_methods(
-        "ID-123456", "synthscape", tool_versions={"my_pkg": "v1.2.3"}
+    methods_fail = analysis.add_versions_to_methods(
+        include_onyx_versions=True,
+        sample_id="ID-123456",
+        server_name="synthscape",
+        tool_versions={"my_pkg": "v1.2.3"},
     )
     print(caplog.text)
     assert analysis.methods == expected_results, "The analysis methods do not look as expected."
@@ -601,13 +628,16 @@ def test_add_methods_plus_tools(mock_method, caplog):
     print(f"\nThe methods field correctly looks like: \n{analysis.methods}")
 
 
-def test_add_methods_broken_onyx(caplog):
+def test_add_versions_to_methods_broken_onyx(caplog):
     """
     Test that methods_fail if the onyx call doesn't work.
     """
     analysis = oa.OnyxAnalysis()
-    methods_fail = analysis.add_methods(
-        "ID-123456", "synthscape", tool_versions={"my_pkg": "v1.2.3"}
+    methods_fail = analysis.add_versions_to_methods(
+        include_onyx_versions=True,
+        sample_id="ID-123456",
+        server_name="synthscape",
+        tool_versions={"my_pkg": "v1.2.3"},
     )
     print(f"\nLog should record error: \n{caplog.text}")
     assert "Error: Onyx cannot query" in caplog.text
@@ -615,17 +645,39 @@ def test_add_methods_broken_onyx(caplog):
     print("add_methods fails correctly if onyx cannot connect.")
 
 
-def test_add_other_methods(caplog):
+def test_add_versions_to_methods_just_versions(caplog):
+    """
+    Test that versions are added without onyx query.
+    """
+    expected_results = {
+        "versions": [
+            {"name": "my_pkg", "version": "v1.2.3"},
+        ]
+    }
+
+    analysis = oa.OnyxAnalysis()
+    methods_fail = analysis.add_versions_to_methods(
+        include_onyx_versions=False,
+        tool_versions={"my_pkg": "v1.2.3"},
+    )
+    print(caplog.text)
+    assert analysis.methods == expected_results, "The analysis methods do not look as expected."
+    assert not methods_fail
+    print(f"\nThe methods field correctly looks like: \n{analysis.methods}")
+
+
+def test_add_methods(caplog):
     expected_methods = {
-        "versions": [{"name": "db", "version": "1.0.0"}],
         "thresholds": {"limit": 10},
         "command": "must_record_this_command.sh",
     }
 
     analysis = oa.OnyxAnalysis()
-    analysis.methods = {"versions": [{"name": "db", "version": "1.0.0"}]}
-    methods_fail = analysis.add_other_methods(
-        {"thresholds": {"limit": 10}, "command": "must_record_this_command.sh"}
+    methods_fail = analysis.add_methods(
+        {
+            "thresholds": {"limit": 10},
+            "command": "must_record_this_command.sh",
+        }
     )
     print(caplog.text)
     assert analysis.methods == expected_methods
@@ -633,42 +685,35 @@ def test_add_other_methods(caplog):
     print(f"analysis table methods fields correctly looks like: {analysis.methods}")
 
 
-def test_add_other_methods_add_more_versions(caplog):
-    expected_methods = {
-        "versions": [{"name": "db", "version": "1.0.0"}, {"name": "awesomepkg", "version": "0.0.0"}]
-    }
-
+@pytest.mark.parametrize(
+    "input,msg",
+    [
+        ({"tool_version": "1.2.3"}, "Error: Cannot add 'tool_version'"),
+        ({"versions": ["1.0.0", "2.0.0"]}, "Error: Cannot add 'versions'"),
+        ({"versions": {"name": "tool", "version": "1.0.0"}}, "Error: Cannot add 'versions'"),
+        ("1.2.3", "Error: Methods must be in dict format"),
+    ],
+)
+def test_add_methods_try_adding_versions(input, msg, caplog):
+    """Test that adding any kind of version or versions will log an error."""
     analysis = oa.OnyxAnalysis()
-    analysis.methods = {"versions": [{"name": "db", "version": "1.0.0"}]}
-    methods_fail = analysis.add_other_methods(
-        {"versions": {"name": "awesomepkg", "version": "0.0.0"}}
-    )
+    # add_versions_to_methods has been run and "versions" already exists.
 
-    print(caplog.text)
-    assert analysis.methods == expected_methods
-    assert not methods_fail
-    print(f"analysis table methods fields correctly looks like: {analysis.methods}")
+    methods_fail = analysis.add_methods(input)
+
+    assert methods_fail
+    assert msg in caplog.text
+    print(f"\nExpected error in log:\n{caplog.text}")
 
 
-def test_add_other_methods_broken_methods_dict_input(caplog):
+def test_add_methods_broken_methods_dict_input(caplog):
     """Test error logged if methods_dict input type incorrect."""
     analysis = oa.OnyxAnalysis()
     analysis.methods = {}
-    methods_fail = analysis.add_other_methods(
+    methods_fail = analysis.add_methods(
         "command"  # ty:ignore[invalid-argument-type]
     )
     print(f"\nLog should record error: \n{caplog.text}")
     assert "Error: Methods must be in dict format." in caplog.text
     assert methods_fail
     print("Error correctly caught when input type not dict.")
-
-
-def test_add_other_methods_without_attribute_set(caplog):
-    analysis = oa.OnyxAnalysis()
-    methods_fail = analysis.add_other_methods(
-        "command"  # ty:ignore[invalid-argument-type]
-    )
-    print(f"\nLogging:\n{caplog.text}")
-    assert "Error: instance has no 'methods' attribute" in caplog.text
-    assert methods_fail
-    print("Correctly detected error when method attribute not available.")
