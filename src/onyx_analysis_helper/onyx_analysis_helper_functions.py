@@ -218,6 +218,7 @@ class OnyxAnalysis:
     def add_versions_to_methods(
         self,
         include_onyx_versions: bool = False,
+        include_versions_hash: bool = False,
         sample_id: str | None = None,
         server_name: str | None = None,
         tool_versions: dict | None = None,
@@ -237,6 +238,8 @@ class OnyxAnalysis:
         Arguments:
             include_onyx_versions -- default is False, set to True if onyx versions should be
                 included.
+            include_versions_hash -- default is False, set to True to calculate and add
+                versions_hash to the methods dict after versions are added.
             sample_id -- Optional (required if 'include_onyx_versions' is True). Valid climb id.
             server_name -- Optional (required if 'include_onyx_versions' is True). Name of server to
                 query.
@@ -290,6 +293,9 @@ class OnyxAnalysis:
 
         # Add versions_dicts to the analysis table
         self.methods["versions"] = versions_dicts
+        if include_versions_hash:
+            methods_fail = self.add_versions_hash_to_methods()
+
         # methods did not fail
         return methods_fail
 
