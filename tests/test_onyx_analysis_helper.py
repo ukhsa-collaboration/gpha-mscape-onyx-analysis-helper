@@ -661,7 +661,7 @@ def test_add_versions_to_methods_broken_onyx(caplog):
         include_onyx_versions=True,
         sample_id="ID-123456",
         server_name="synthscape",
-        tool_versions={"my_pkg": "v1.2.3"},
+        tool_versions={"cool_tool": "v1.2.3"},
     )
     print(f"\nLog should record error: \n{caplog.text}")
     assert "Error: Onyx cannot query" in caplog.text
@@ -688,6 +688,213 @@ def test_add_versions_to_methods_just_versions(caplog):
     assert analysis.methods == expected_results, "The analysis methods do not look as expected."
     assert not methods_fail
     print(f"\nThe methods field correctly looks like: \n{analysis.methods}")
+
+
+def test_add_versions_not_hash_by_default():
+    """Test versions_hash is not added unless include_versions_hash is True."""
+    analysis = oa.OnyxAnalysis()
+    methods_fail = analysis.add_versions_to_methods(
+        include_onyx_versions=False,
+        tool_versions={"cool_tool": "v1.2.3"},
+    )
+
+    assert not methods_fail
+    assert "versions_hash" not in analysis.methods
+
+
+def test_add_versions_can_add_versions_hash():
+    """Test include_versions_hash adds a versions_hash after adding versions."""
+    analysis = oa.OnyxAnalysis()
+    methods_fail = analysis.add_versions_to_methods(
+        include_onyx_versions=False,
+        tool_versions={"cool_tool": "v1.2.3"},
+        include_versions_hash=True,
+    )
+
+    assert not methods_fail
+    assert analysis.methods["versions_hash"] == oa._calculate_versions_hash(
+        analysis.methods["versions"]
+    )
+
+
+def test_add_versions_can_overwrite_versions_hash():
+    """Test include_versions_hash overwrites an existing versions_hash."""
+    analysis = oa.OnyxAnalysis()
+    analysis.methods["versions_hash"] = "i_am_a_existing_hash_!"
+
+    methods_fail = analysis.add_versions_to_methods(
+        include_onyx_versions=False,
+        tool_versions={"cool_tool": "v1.2.3"},
+        include_versions_hash=True,
+    )
+
+    assert not methods_fail
+    assert analysis.methods["versions_hash"] != "i_am_a_existing_hash_!"
+    assert analysis.methods["versions_hash"] == oa._calculate_versions_hash(
+        analysis.methods["versions"]
+    )
+
+
+def test_calculate_hash_not_affected_by_version_order():
+    """Test that same entries in different orders produce the same hash."""
+    versions = [
+        {"name": "this_tool_doesnt_exist", "version": "v1.2.3"},
+        {"name": "neither_does_this_one", "version": "1.0.0"},
+        {"name": "important_database", "version": "2026-04-24"},
+    ]
+    reordered_versions = [
+        {"name": "important_database", "version": "2026-04-24"},
+        {"name": "this_tool_doesnt_exist", "version": "v1.2.3"},
+        {"name": "neither_does_this_one", "version": "1.0.0"},
+    ]
+
+    assert oa._calculate_versions_hash(versions) == oa._calculate_versions_hash(reordered_versions)
+
+
+def test_calculate_hash_is_not_affected_by_dict_key_order():
+    """Test that same entries with different dict key orders produce the same hash."""
+    versions = [
+        {"name": "this_tool_doesnt_exist", "version": "v1.2.3"},
+        {"name": "neither_does_this_one", "version": "1.0.0"},
+        {"name": "important_database", "version": "2026-04-24"},
+    ]
+    reordered_keys_versions = [
+        {"version": "v1.2.3", "name": "this_tool_doesnt_exist"},
+        {"version": "1.0.0", "name": "neither_does_this_one"},
+        {"name": "important_database", "version": "2026-04-24"},
+    ]
+
+    assert oa._calculate_versions_hash(versions) == oa._calculate_versions_hash(
+        reordered_keys_versions
+    )
+
+
+def test_calculate_hash_changes_when_new_version_is_added():
+    """Test adding a version entry changes the hash."""
+    versions = [
+        {"name": "this_tool_doesnt_exist", "version": "v1.2.3"},
+        {"name": "neither_does_this_one", "version": "1.0.0"},
+    ]
+    versions_with_new_tool = [
+        {"name": "this_tool_doesnt_exist", "version": "v1.2.3"},
+        {"name": "neither_does_this_one", "version": "1.0.0"},
+        {"name": "important_database", "version": "2026-04-24"},
+    ]
+
+    assert oa._calculate_versions_hash(versions) != oa._calculate_versions_hash(
+        versions_with_new_tool
+    )
+
+
+@pytest.mark.parametrize(
+    "changed_version",
+    [
+        pytest.param("oh_look_i_use_strings_as_versions_now", id="string"),
+        pytest.param("v1.0.1", id="patch_with_v"),
+        pytest.param("2.0.0", id="major"),
+        pytest.param("1.1.0", id="minor"),
+        pytest.param("1.0.1", id="patch"),
+    ],
+)
+def test_calculate_hash_changes_when_version_changes(changed_version):
+    """Test that changing version changes the hash."""
+    versions = [
+        {"name": "this_tool_doesnt_exist", "version": "v1.2.3"},
+        {"name": "neither_does_this_one", "version": "1.0.0"},
+    ]
+    versions_with_changed_version = [
+        {"name": "this_tool_doesnt_exist", "version": "v1.2.3"},
+        {"name": "neither_does_this_one", "version": changed_version},
+    ]
+
+    assert oa._calculate_versions_hash(versions) != oa._calculate_versions_hash(
+        versions_with_changed_version
+    )
+
+
+def test_extra_field_in_version_dict_changes_hash():
+    """Test that adding an extra field to the version dict changes the hash."""
+    versions = [
+        {"name": "this_tool_doesnt_exist", "version": "v1.2.3"},
+        {"name": "neither_does_this_one", "version": "1.0.0"},
+    ]
+    versions_with_extra_field = [
+        {
+            "name": "this_tool_doesnt_exist",
+            "version": "v1.2.3",
+            "i_am_extra": "with_an_extra_value",
+        },
+        {"name": "neither_does_this_one", "version": "1.0.0"},
+    ]
+
+    assert oa._calculate_versions_hash(versions) != oa._calculate_versions_hash(
+        versions_with_extra_field
+    )
+
+
+def test_add_versions_hash_to_methods():
+    """Test adding a versions hash to the methods dict."""
+    analysis = oa.OnyxAnalysis()
+    analysis.methods = {
+        "versions": [
+            {"name": "this_tool_doesnt_exist", "version": "v1.2.3"},
+            {"name": "neither_does_this_one", "version": "1.0.0"},
+        ]
+    }
+
+    methods_fail = analysis.add_versions_hash_to_methods()
+
+    assert not methods_fail
+    assert analysis.methods["versions_hash"] == oa._calculate_versions_hash(
+        analysis.methods["versions"]
+    )
+
+
+def test_add_versions_hash_to_methods_replaces():
+    """Test versions hash is overwritten when versions change."""
+    analysis = oa.OnyxAnalysis()
+    analysis.methods = {
+        "versions": [
+            {"name": "this_tool_doesnt_exist", "version": "v1.2.3"},
+            {"name": "neither_does_this_one", "version": "1.0.0"},
+        ]
+    }
+
+    first_methods_fail = analysis.add_versions_hash_to_methods()
+    first_hash = analysis.methods["versions_hash"]
+
+    analysis.methods["versions"].append({"name": "important_database", "version": "2026-04-24"})
+    second_methods_fail = analysis.add_versions_hash_to_methods()
+
+    assert not first_methods_fail
+    assert not second_methods_fail
+    assert analysis.methods["versions_hash"] != first_hash
+
+
+def test_add_versions_hash_to_methods_missing_versions_fails(caplog):
+    """Test missing versions list fails"""
+    analysis = oa.OnyxAnalysis()
+    analysis.methods = {"thresholds": {"limit": 10}}
+
+    methods_fail = analysis.add_versions_hash_to_methods()
+
+    assert methods_fail
+    assert (
+        "Error: versions must be present in methods before calculating versions_hash" in caplog.text
+    )
+    assert "versions_hash" not in analysis.methods
+
+
+def test_add_versions_hash_to_methods_wrong_type_fails(caplog):
+    """Test non-list versions fail"""
+    analysis = oa.OnyxAnalysis()
+    analysis.methods = {"versions": {"name": "this_tool_doesnt_exist", "version": "v1.2.3"}}
+
+    methods_fail = analysis.add_versions_hash_to_methods()
+
+    assert methods_fail
+    assert "Error: versions must be a list before calculating versions_hash" in caplog.text
+    assert "versions_hash" not in analysis.methods
 
 
 def test_add_methods(caplog):

@@ -81,7 +81,9 @@ methods_fail = onyx_analysis.add_methods(
 # If you want to add any versions of anything, you must use the "add_versions_to_methods" method.
 # This can be used without using add_methods beforehand. In this example, the above code runs first:
 methods_versions_fail = onyx_analysis.add_versions_to_methods(
-    tool_versions = {"my_dependency_version": pkg.__version__, "other_tool": "2.0.0"})
+    tool_versions = {"my_dependency_version": pkg.__version__, "other_tool": "2.0.0"},
+    # This is optional and defaults to False:
+    include_versions_hash = True)
 
         # What will methods now look like?
         {"methods": {
@@ -90,7 +92,8 @@ methods_versions_fail = onyx_analysis.add_versions_to_methods(
             "versions": [
                 {"name": "my_dependency_version", "version": "1.0.0"},
                 {"name": "other_tool", "version": "2.0.0"}
-            ]
+            ],
+            "versions_hash": "<some_long_hash>"
             }
         }
 
@@ -102,7 +105,9 @@ methods_versions_fail = onyx_analysis.add_versions_to_methods(
         sample_id = "ID_11111"
         server_name = "server",
         # this is optional:
-        tool_versions = {"my_dependency_version": pkg.__version__, "other_tool": "2.0.0"}
+        tool_versions = {"my_dependency_version": pkg.__version__, "other_tool": "2.0.0"},
+        # this is optional and defaults to False:
+        include_versions_hash = True
    )
 
         # What does this now look like?
@@ -115,6 +120,7 @@ methods_versions_fail = onyx_analysis.add_versions_to_methods(
                 {"name": "database_from_onyx", "version": "1.0.0"},
                 {"name": "tool_version_from_onyx", "version": "1.0.0"}
             ],
+            "versions_hash": "<some_long_hash>"
             }
         }
 
@@ -137,7 +143,7 @@ required_field_fail, attribute_fail = onyx_analysis.check_analysis_object(publis
 
 # Fail statuses can be checked and actioned as appropriate with e.g. logging, raising an
 # error etc using something like:
-if any([methods_fail, methods_versions_fail, results_fail, output_fail, required_field_fail, attribute_fail]):
+if any([methods_fail, methods_versions_fail, versions_hash_fail, results_fail, output_fail, required_field_fail, attribute_fail]):
     logging.error("Incorrect attribute in analysis object, check logs for details")
     exitcode = 1
 else:
