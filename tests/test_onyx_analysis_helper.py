@@ -717,6 +717,32 @@ def test_calculate_hash_changes_when_new_version_is_added():
     )
 
 
+@pytest.mark.parametrize(
+    "changed_version",
+    [
+        pytest.param("oh_look_i_use_strings_as_versions_now", id="string"),
+        pytest.param("v1.0.1", id="patch_with_v"),
+        pytest.param("2.0.0", id="major"),
+        pytest.param("1.1.0", id="minor"),
+        pytest.param("1.0.1", id="patch"),
+    ],
+)
+def test_calculate_hash_changes_when_version_changes(changed_version):
+    """Test that changing version changes the hash."""
+    versions = [
+        {"name": "this_tool_doesnt_exist", "version": "v1.2.3"},
+        {"name": "neither_does_this_one", "version": "1.0.0"},
+    ]
+    versions_with_changed_version = [
+        {"name": "this_tool_doesnt_exist", "version": "v1.2.3"},
+        {"name": "neither_does_this_one", "version": changed_version},
+    ]
+
+    assert oa._calculate_versions_hash(versions) != oa._calculate_versions_hash(
+        versions_with_changed_version
+    )
+
+
 def test_extra_field_in_version_dict_changes_hash():
     """Test that adding an extra field to the version dict changes the hash."""
     versions = [
