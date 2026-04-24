@@ -4,6 +4,7 @@ to support submission and reading of onyx analyses.
 """
 
 import datetime
+import hashlib
 import importlib.metadata as metadata
 import json
 import logging
@@ -113,6 +114,22 @@ def call_to_onyx(func):
 
 
 # Functions
+def _calculate_versions_hash(versions: list[dict[str, str | None]]) -> str:
+    """
+    Create a stable SHA-256 hash from version records.
+
+    Version record order and dict key order do not affect the hash.
+    A new entry in the versions list will change the hash, as will a new field in the version dicts, or a change in any of the values.
+    """
+    stable_versions = sorted(
+        versions,
+        key=lambda version: json.dumps(version, sort_keys=True, separators=(",", ":")),
+    )
+    versions_json = json.dumps(stable_versions, sort_keys=True, separators=(",", ":"))
+
+    return hashlib.sha256(versions_json.encode()).hexdigest()
+
+
 @call_to_onyx
 def _get_versions_from_onyx(sample_id: str, server: str) -> tuple[list[dict[str, str | None]], int]:
     """
@@ -201,6 +218,7 @@ class OnyxAnalysis:
     def add_versions_to_methods(
         self,
         include_onyx_versions: bool = False,
+        include_versions_hash: bool = False,
         sample_id: str | None = None,
         server_name: str | None = None,
         tool_versions: dict | None = None,
@@ -220,6 +238,8 @@ class OnyxAnalysis:
         Arguments:
             include_onyx_versions -- default is False, set to True if onyx versions should be
                 included.
+            include_versions_hash -- default is False, set to True to calculate and add
+                versions_hash to the methods dict after versions are added.
             sample_id -- Optional (required if 'include_onyx_versions' is True). Valid climb id.
             server_name -- Optional (required if 'include_onyx_versions' is True). Name of server to
                 query.
@@ -273,7 +293,38 @@ class OnyxAnalysis:
 
         # Add versions_dicts to the analysis table
         self.methods["versions"] = versions_dicts
+        if include_versions_hash:
+            methods_fail = self.add_versions_hash_to_methods()
+
         # methods did not fail
+        return methods_fail
+
+    def add_versions_hash_to_methods(self) -> bool:
+        """
+        Calculate and add versions_hash to the methods field.
+
+        This can be called after versions have been added to methods. It always
+        overwrites any existing versions_hash with a hash calculated from the
+        current methods["versions"] list.
+
+        Returns:
+            methods_fail: true if fail, check logging message.
+        """
+        methods_fail = False
+
+        if "versions" not in self.methods:
+            logging.error(
+                "Error: versions must be present in methods before calculating versions_hash"
+            )
+            methods_fail = True
+            return methods_fail
+
+        if not isinstance(self.methods["versions"], list):
+            logging.error("Error: versions must be a list before calculating versions_hash")
+            methods_fail = True
+            return methods_fail
+
+        self.methods["versions_hash"] = _calculate_versions_hash(self.methods["versions"])
         return methods_fail
 
     def add_methods(self, methods_dict: dict) -> bool:

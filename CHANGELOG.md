@@ -1,10 +1,11 @@
 # v0.4.0 - April 2026
 
 ## Added:
-Function to query onyx to get the versions of key databases/tools.
-'add_versions_to_methods' method adds versions to the method dict. This can either add a dict given
-as an arg, or can query onyx and include predefined list of versions from Onyx.
-Unit tests for the new methods which uses patch to mock the returned query record.
+- Function to query onyx to get the versions of key databases/tools.
+- 'add_versions_to_methods' method adds versions to the method dict. This can either add a dict given
+    as an arg, or can query onyx and include predefined list of versions from Onyx.
+- Unit tests for the new methods which uses patch to mock the returned query record.
+- Function to add versions_hash calcualted from versions field onto methods
 
 
 ## Changed:
