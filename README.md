@@ -94,8 +94,6 @@ methods_versions_fail = onyx_analysis.add_versions_to_methods(
             }
         }
 
-# Any additional methods can now be added to the method attribute. You must provide the methods_dict
-# as a dict. With the example below, thresholds will then be added to the methods dict like this:
 # If you want to include versions that are stored in Onyx, use the same method and set
 # 'include_onyx_versions' to True, and provide a valid climb_id and server_name. You can also give
 # additional tool_versions here aswell:
