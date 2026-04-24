@@ -642,7 +642,7 @@ def test_add_versions_to_methods_broken_onyx(caplog):
     print(f"\nLog should record error: \n{caplog.text}")
     assert "Error: Onyx cannot query" in caplog.text
     assert methods_fail
-    print("add_methods fails correctly if onyx cannot connect.")
+    print("add_ersions_to_methods fails correctly if onyx cannot connect.")
 
 
 def test_add_versions_to_methods_just_versions(caplog):
@@ -688,8 +688,7 @@ def test_add_methods(caplog):
 @pytest.mark.parametrize(
     "input,msg",
     [
-        ({"tool_version": "1.2.3"}, "Error: Cannot add 'tool_version'"),
-        ({"versions": ["1.0.0", "2.0.0"]}, "Error: Cannot add 'versions'"),
+        ({"version": ["1.0.0", "2.0.0"]}, "Error: Cannot add 'version'"),
         ({"versions": {"name": "tool", "version": "1.0.0"}}, "Error: Cannot add 'versions'"),
         ("1.2.3", "Error: Methods must be in dict format"),
     ],

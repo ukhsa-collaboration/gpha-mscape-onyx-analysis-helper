@@ -1,11 +1,8 @@
-#!/usr/bin/env python3
-
 """
 Module containing OnyxAnalysis class object and associated functions
 to support submission and reading of onyx analyses.
 """
 
-# Imports - ordered (can use ruff to do this automatically)
 import datetime
 import importlib.metadata as metadata
 import json
@@ -14,6 +11,7 @@ import os
 import time
 from functools import wraps
 from pathlib import Path
+from typing import Any
 
 from onyx import OnyxClient, OnyxConfig, OnyxEnv
 from onyx.exceptions import OnyxClientError, OnyxConfigError, OnyxConnectionError, OnyxHTTPError
@@ -302,7 +300,7 @@ class OnyxAnalysis:
             return methods_fail
 
         for method_name, method_params in methods_dict.items():
-            if "version" in method_name:
+            if method_name == "version" or method_name == "versions":
                 logging.error(
                     (  # noqa: UP031
                         "Error: Cannot add '%s' to the methods field with add_methods. "
@@ -375,8 +373,13 @@ class OnyxAnalysis:
         """
         self.is_published = publish_analysis
 
+        fields_dict: dict[str, str | dict | Path | list | None] = vars(self)
+        # make sure all attributes are json strings:
+        fields_dict["methods"] = json.dumps(self.methods)
+        fields_dict["result_metrics"] = json.dumps(self.result_metrics)
+
         with OnyxClient(CONFIG) as client:
-            result = client.create_analysis(project=server, fields=vars(self), test=dryrun)
+            result = client.create_analysis(project=server, fields=fields_dict, test=dryrun)
         exitcode = 0
 
         return result, exitcode
@@ -439,7 +442,7 @@ class OnyxAnalysis:
 
     def _check_required_outputs(self) -> bool:
         "Checks output field is present, returns True if missing"
-        fields_dict = vars(self)
+        fields_dict: dict[str, Any] = vars(self)
         missing_output = False
         output_fields = ["report", "outputs"]
 
