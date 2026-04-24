@@ -73,6 +73,16 @@ methods_fail = onyx_analysis.add_methods(
             }
         }
 
+# Once versions have been populated, add a hash calculated from methods["versions"].
+# This writes methods["versions_hash"] and overwrites it if called again.
+versions_hash_fail = onyx_analysis.add_versions_hash_to_methods()
+
+        # The methods dict will now also include:
+        {"methods": {
+            "versions_hash": "<some_long_hash>"
+            }
+        }
+
 # Any additional methods can now be added to the method attribute. You must provide the methods_dict
 # as a dict. With the example below, thresholds will then be added to the methods dict like this:
 
@@ -120,7 +130,7 @@ required_field_fail, attribute_fail = onyx_analysis.check_analysis_object(publis
 
 # Fail statuses can be checked and actioned as appropriate with e.g. logging, raising an
 # error etc using something like:
-if any([methods_fail, other_methods_fail, results_fail, output_fail, required_field_fail, attribute_fail]):
+if any([methods_fail, versions_hash_fail, other_methods_fail, results_fail, output_fail, required_field_fail, attribute_fail]):
     logging.error("Incorrect attribute in analysis object, check logs for details")
     exitcode = 1
 else:
