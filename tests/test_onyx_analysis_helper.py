@@ -716,6 +716,7 @@ def test_calculate_hash_changes_when_new_version_is_added():
         versions_with_new_tool
     )
 
+
 def test_extra_field_in_version_dict_changes_hash():
     """Test that adding an extra field to the version dict changes the hash."""
     versions = [
@@ -723,7 +724,11 @@ def test_extra_field_in_version_dict_changes_hash():
         {"name": "neither_does_this_one", "version": "1.0.0"},
     ]
     versions_with_extra_field = [
-        {"name": "this_tool_doesnt_exist", "version": "v1.2.3", "i_am_extra": "with_an_extra_value"},
+        {
+            "name": "this_tool_doesnt_exist",
+            "version": "v1.2.3",
+            "i_am_extra": "with_an_extra_value",
+        },
         {"name": "neither_does_this_one", "version": "1.0.0"},
     ]
 
@@ -779,7 +784,9 @@ def test_add_versions_hash_to_methods_missing_versions_fails(caplog):
     methods_fail = analysis.add_versions_hash_to_methods()
 
     assert methods_fail
-    assert "Error: versions must be present in methods before calculating versions_hash" in caplog.text
+    assert (
+        "Error: versions must be present in methods before calculating versions_hash" in caplog.text
+    )
     assert "versions_hash" not in analysis.methods
 
 
