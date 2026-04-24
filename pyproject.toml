@@ -11,6 +11,7 @@ version = {attr = "onyx_analysis_helper.__version__"} # Add underscore separated
 
 [project.optional-dependencies] # Dependencies for developers only - add more if required
 dev = ["ruff>=0.4.10,<0.5", "pytest", "pre-commit", "regex", "moto[s3, server]"]
+extra = ["pyyaml"]
 
 [build-system] # Leave this section
 requires = ["setuptools"]
