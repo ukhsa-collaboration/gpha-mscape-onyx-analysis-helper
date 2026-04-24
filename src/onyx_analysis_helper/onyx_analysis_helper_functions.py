@@ -7,6 +7,7 @@ to support submission and reading of onyx analyses.
 
 # Imports - ordered (can use ruff to do this automatically)
 import datetime
+import hashlib
 import importlib.metadata as metadata
 import json
 import logging
@@ -115,6 +116,22 @@ def call_to_onyx(func):
 
 
 # Functions
+def _calculate_versions_hash(versions: list[dict[str, str | None]]) -> str:
+    """
+    Create a stable SHA-256 hash from version records.
+
+    Version record order and dict key order do not affect the hash.
+    A new entry in the versions list will change the hash, as will a new field in the version dicts, or a change in any of the values.
+    """
+    stable_versions = sorted(
+        versions,
+        key=lambda version: json.dumps(version, sort_keys=True, separators=(",", ":")),
+    )
+    versions_json = json.dumps(stable_versions, sort_keys=True, separators=(",", ":"))
+
+    return hashlib.sha256(versions_json.encode()).hexdigest()
+
+
 @call_to_onyx
 def _get_versions_from_onyx(sample_id: str, server: str) -> tuple[list[dict[str, str | None]], int]:
     """
