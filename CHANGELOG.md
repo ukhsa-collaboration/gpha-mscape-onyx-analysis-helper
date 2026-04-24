@@ -1,10 +1,11 @@
 # v0.4.0 - April 2026
 
 ## Added:
-Function to query onyx to get the versions of key databases/tools.
-Extra function to add custom methods to the methods field in the analysis table. Now, add_methods
+- Function to query onyx to get the versions of key databases/tools.
+- Extra function to add custom methods to the methods field in the analysis table. Now, add_methods
 must be run first, then add_other_methods run afterwards (optional).
-Unit tests for the new function which uses patch to mock the returned query record.
+- Unit tests for the new function which uses patch to mock the returned query record.
+- OnyxAnalysis method to add a calculated hash from all versions to the methods as versions_hash.
 
 
 ## Changed:
