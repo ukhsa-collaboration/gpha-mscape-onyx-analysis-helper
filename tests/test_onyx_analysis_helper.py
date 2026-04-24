@@ -666,6 +666,72 @@ def test_add_versions_to_methods_just_versions(caplog):
     print(f"\nThe methods field correctly looks like: \n{analysis.methods}")
 
 
+def test_calculate_hash_not_affected_by_version_order():
+    """Test that same entries in different orders produce the same hash."""
+    versions = [
+        {"name": "this_tool_doesnt_exist", "version": "v1.2.3"},
+        {"name": "neither_does_this_one", "version": "1.0.0"},
+        {"name": "important_database", "version": "2026-04-24"},
+    ]
+    reordered_versions = [
+        {"name": "important_database", "version": "2026-04-24"},
+        {"name": "this_tool_doesnt_exist", "version": "v1.2.3"},
+        {"name": "neither_does_this_one", "version": "1.0.0"},
+    ]
+
+    assert oa._calculate_versions_hash(versions) == oa._calculate_versions_hash(reordered_versions)
+
+
+def test_calculate_hash_is_not_affected_by_dict_key_order():
+    """Test that same entries with different dict key orders produce the same hash."""
+    versions = [
+        {"name": "this_tool_doesnt_exist", "version": "v1.2.3"},
+        {"name": "neither_does_this_one", "version": "1.0.0"},
+        {"name": "important_database", "version": "2026-04-24"},
+    ]
+    reordered_keys_versions = [
+        {"version": "v1.2.3", "name": "this_tool_doesnt_exist"},
+        {"version": "1.0.0", "name": "neither_does_this_one"},
+        {"name": "important_database", "version": "2026-04-24"},
+    ]
+
+    assert oa._calculate_versions_hash(versions) == oa._calculate_versions_hash(
+        reordered_keys_versions
+    )
+
+
+def test_calculate_hash_changes_when_new_version_is_added():
+    """Test adding a version entry changes the hash."""
+    versions = [
+        {"name": "this_tool_doesnt_exist", "version": "v1.2.3"},
+        {"name": "neither_does_this_one", "version": "1.0.0"},
+    ]
+    versions_with_new_tool = [
+        {"name": "this_tool_doesnt_exist", "version": "v1.2.3"},
+        {"name": "neither_does_this_one", "version": "1.0.0"},
+        {"name": "important_database", "version": "2026-04-24"},
+    ]
+
+    assert oa._calculate_versions_hash(versions) != oa._calculate_versions_hash(
+        versions_with_new_tool
+    )
+
+def test_extra_field_in_version_dict_changes_hash():
+    """Test that adding an extra field to the version dict changes the hash."""
+    versions = [
+        {"name": "this_tool_doesnt_exist", "version": "v1.2.3"},
+        {"name": "neither_does_this_one", "version": "1.0.0"},
+    ]
+    versions_with_extra_field = [
+        {"name": "this_tool_doesnt_exist", "version": "v1.2.3", "i_am_extra": "with_an_extra_value"},
+        {"name": "neither_does_this_one", "version": "1.0.0"},
+    ]
+
+    assert oa._calculate_versions_hash(versions) != oa._calculate_versions_hash(
+        versions_with_extra_field
+    )
+
+
 def test_add_methods(caplog):
     expected_methods = {
         "thresholds": {"limit": 10},
