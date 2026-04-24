@@ -1,0 +1,2 @@
+sampleid,top_hits,max_mm,max_percent,folder,stage1_result,mix_mm,stage2_varids,stage2_hits,stage2_result,predicted_serotype,rag_status
+ID-123456789,"{'01': 96.1, '02': 80.3,'19A-II': 79.3, '12A': 30.2, '11A/11D': 27.6}",50,96.101234,,01,,,{},{},01,GREEN
