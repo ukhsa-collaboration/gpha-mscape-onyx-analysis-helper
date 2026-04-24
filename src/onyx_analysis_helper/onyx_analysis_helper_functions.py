@@ -295,6 +295,34 @@ class OnyxAnalysis:
         # methods did not fail
         return methods_fail
 
+    def add_versions_hash_to_methods(self) -> bool:
+        """
+        Calculate and add versions_hash to the methods field.
+
+        This can be called after versions have been added to methods. It always
+        overwrites any existing versions_hash with a hash calculated from the
+        current methods["versions"] list.
+
+        Returns:
+            methods_fail: true if fail, check logging message.
+        """
+        methods_fail = False
+
+        if "versions" not in self.methods:
+            logging.error(
+                "Error: versions must be present in methods before calculating versions_hash"
+            )
+            methods_fail = True
+            return methods_fail
+
+        if not isinstance(self.methods["versions"], list):
+            logging.error("Error: versions must be a list before calculating versions_hash")
+            methods_fail = True
+            return methods_fail
+
+        self.methods["versions_hash"] = _calculate_versions_hash(self.methods["versions"])
+        return methods_fail
+
     def add_methods(self, methods_dict: dict) -> bool:
         """
         Attempts to add methods to onyx analysis object. If methods are invalid, returns
