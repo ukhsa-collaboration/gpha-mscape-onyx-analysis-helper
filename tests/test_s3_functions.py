@@ -54,7 +54,7 @@ def test_bucket(s3_client):
 
 @pytest.fixture
 def example_result_file():
-    result_dir = "tests/test_data/C-123456789_qc_results.json"
+    result_dir = "tests/test_data/ID-123456789_qc_results.json"
 
     return result_dir
 
@@ -76,7 +76,7 @@ def example_result_file_md5():
 @pytest.fixture
 def s3_file(s3_client, test_bucket, example_result_file):
     s3_client.upload_file(
-        example_result_file, "testbucket", "A-1234/A-1234_C-123456789_qc_results.json"
+        example_result_file, "testbucket", "A-1234/A-1234_ID-123456789_qc_results.json"
     )
 
 
@@ -90,7 +90,7 @@ def download_file_path(tmp_path_factory):
 def test_make_s3_name(example_result_file):
     s3_key = s3f._make_s3_key_name(analysis_id="A-1234", file_for_upload=example_result_file)
     print(s3_key)
-    assert s3_key == "A-1234/A-1234_C-123456789_qc_results.json"
+    assert s3_key == "A-1234/A-1234_ID-123456789_qc_results.json"
 
 
 @mock_aws
@@ -113,10 +113,10 @@ def test_upload_file_to_s3(s3_client, test_bucket, example_result_file, example_
     )
 
     response = s3_client.head_object(
-        Bucket="testbucket", Key="A-1234/A-1234_C-123456789_qc_results.json"
+        Bucket="testbucket", Key="A-1234/A-1234_ID-123456789_qc_results.json"
     )
 
-    assert tuple_return == ("s3://testbucket/A-1234/A-1234_C-123456789_qc_results.json", 0)
+    assert tuple_return == ("s3://testbucket/A-1234/A-1234_ID-123456789_qc_results.json", 0)
     assert (
         response["ResponseMetadata"]["HTTPHeaders"]["x-amz-content-sha256"]
         == example_result_file_sha256
@@ -162,7 +162,7 @@ def test_generate_local_checksum_md5(example_result_file, example_result_file_md
 @mock_aws
 def test_get_s3_checksum_sha256(s3_client, test_bucket, example_result_file_sha256, s3_file):
     tuple_return = s3f.get_s3_checksum(
-        "testbucket", "A-1234/A-1234_C-123456789_qc_results.json", s3_client, "sha256"
+        "testbucket", "A-1234/A-1234_ID-123456789_qc_results.json", s3_client, "sha256"
     )
 
     assert tuple_return == (example_result_file_sha256, 0)
@@ -171,7 +171,7 @@ def test_get_s3_checksum_sha256(s3_client, test_bucket, example_result_file_sha2
 @mock_aws
 def test_get_s3_checksum_etag(s3_client, test_bucket, example_result_file_md5, s3_file):
     tuple_return = s3f.get_s3_checksum(
-        "testbucket", "A-1234/A-1234_C-123456789_qc_results.json", s3_client, "etag"
+        "testbucket", "A-1234/A-1234_ID-123456789_qc_results.json", s3_client, "etag"
     )
 
     assert tuple_return == (f"{example_result_file_md5}", 0)
@@ -199,7 +199,7 @@ def test_check_sha256sums_match_fail(example_result_file_sha256):
 @mock_aws
 def test_download_file_from_s3(s3_client, test_bucket, s3_file, download_file_path):
     out_file, exitcode = s3f.download_file_from_s3(
-        s3_client, "testbucket", "A-1234/A-1234_C-123456789_qc_results.json", download_file_path
+        s3_client, "testbucket", "A-1234/A-1234_ID-123456789_qc_results.json", download_file_path
     )
 
     assert out_file.exists()
@@ -221,7 +221,7 @@ def test_download_file_from_s3_error_handling(
 @mock_aws
 def test_download_file_from_s3_error_no_outdir_exists(s3_client, test_bucket, s3_file, caplog):
     tuple_return = s3f.download_file_from_s3(
-        s3_client, "testbucket", "A-1234/A-1234_C-123456789_qc_results.json", "notadir"
+        s3_client, "testbucket", "A-1234/A-1234_ID-123456789_qc_results.json", "notadir"
     )
 
     assert tuple_return == (None, 1)

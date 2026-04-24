@@ -1,11 +1,8 @@
-#!/usr/bin/env python3
-
 """
 Module containing OnyxAnalysis class object and associated functions
 to support submission and reading of onyx analyses.
 """
 
-# Imports - ordered (can use ruff to do this automatically)
 import datetime
 import importlib.metadata as metadata
 import json
@@ -14,6 +11,7 @@ import os
 import time
 from functools import wraps
 from pathlib import Path
+from typing import Any
 
 from onyx import OnyxClient, OnyxConfig, OnyxEnv
 from onyx.exceptions import OnyxClientError, OnyxConfigError, OnyxConnectionError, OnyxHTTPError
@@ -115,6 +113,54 @@ def call_to_onyx(func):
 
 
 # Functions
+@call_to_onyx
+def _get_versions_from_onyx(sample_id: str, server: str) -> tuple[list[dict[str, str | None]], int]:
+    """
+    Get the various database and tool versions from Onyx.
+
+    # TODO:
+    Remove if statement.
+    There is an if statement to check if all versions are in one Onyx field. Note the 'else' is then
+    only required if this does not exist in Onyx, so cnce it does, this 'else' statement is
+    superfluous.
+
+    Arguments:
+            sample_id -- valid climb id.
+            server_name -- name of server to query.
+        Returns:
+            versions_dicts -- list of dicts, where the dict contains "name" and "version".
+                e.g. [{"name": "tool", "version": "1.2.3"}, {"name": "db", "version": "2.3.4"}]
+            exitcode -- 1 if fail 0 if pass
+    """
+    exitcode = 0
+
+    with OnyxClient(CONFIG) as client:
+        record: dict = client.get(project=server, climb_id=sample_id)
+
+        versions_dicts: list[dict[str, str | None]] = []
+
+        # Add a little check that the versions column in the db is as expected:
+        if (
+            (new_versions_dicts := record.get("versions"))
+            and isinstance(new_versions_dicts, list)
+            and isinstance(new_versions_dicts[0], dict)
+        ):
+            versions_dicts.extend(new_versions_dicts)
+            return versions_dicts, exitcode
+
+        # If 'versions' field not available in onyx, then define our own versions to get from onyx:
+        versions_to_get = [
+            "classifier_version",
+            "classifier_db_date",
+            "ncbi_taxonomy_date",
+            "scylla_version",
+            "sylph_db_version",
+            "alignment_db_version",
+        ]
+        for ver in versions_to_get:
+            versions_dicts.append({"name": ver, "version": record.get(ver)})
+
+        return versions_dicts, exitcode
 
 
 class OnyxAnalysis:
@@ -126,11 +172,11 @@ class OnyxAnalysis:
         self.pipeline_url: str
         self.pipeline_version: str
         self.pipeline_command: str | None
-        self.methods: dict
+        self.methods: dict[str, list[dict[str, str | None]]] = {}
         self.result: str
         self.result_metrics: dict
-        self.report: os.path | None
-        self.outputs: os.path | None
+        self.report: Path | None
+        self.outputs: Path | None
         self.upstream_analyses: str | None
         self.downstream_analyses: str | None
         self.identifiers: list[str] = []
@@ -152,17 +198,119 @@ class OnyxAnalysis:
             1
         ]  # Get url from toml - add to template
 
-    def add_methods(self, methods_dict: dict) -> bool:
-        """Attempts to add methods to onyx analysis object. If results are
-        invalid, returns results_fail.
+    def add_versions_to_methods(
+        self,
+        include_onyx_versions: bool = False,
+        sample_id: str | None = None,
+        server_name: str | None = None,
+        tool_versions: dict | None = None,
+    ) -> bool:
         """
-        if isinstance(methods_dict, dict):
-            self.methods = json.dumps(methods_dict)
-            methods_fail = False
-        else:
-            logging.error("Error: Methods must be in dict format")
-            methods_fail = True
+        Method to add versions to the methods field in the analysis table.
 
+        If Onyx versions are to be included, use 'include_onyx_versions = True', and 'sample_id' and
+        'server_name' MUST be supplied. This will then query Onyx for various predefined tool and
+        database versions, and populates the methods dict.
+
+        If other versions are to be added to the methods field, supply a dict to "tool_versions"
+        in the format {'tool_name': 'version'}. This will then be put into the correct format.
+
+        Choose one or both of these.
+
+        Arguments:
+            include_onyx_versions -- default is False, set to True if onyx versions should be
+                included.
+            sample_id -- Optional (required if 'include_onyx_versions' is True). Valid climb id.
+            server_name -- Optional (required if 'include_onyx_versions' is True). Name of server to
+                query.
+            tool_versions -- Optional; dict of other versions to put into the versions dict in the
+                methods. Must be in format {'tool_name': 'version'}
+        Returns:
+            methods_fail -- bool, False if successful, True if fail - check logs.
+        """
+        methods_fail = False
+
+        # There is a possibility that this method does nothing:
+        if not include_onyx_versions and not tool_versions:
+            logging.warning("Warning: No suitable arguments provided, this method does nothing.")
+            return methods_fail
+
+        versions_dicts: list = []
+
+        if include_onyx_versions:
+            # Check if sample_id and server_name are supplied
+            if not sample_id or not server_name:
+                logging.error(
+                    "Error: 'include_onyx_versions' requires sample_id and server_name as arguments."
+                )
+                methods_fail = True
+                return methods_fail
+
+            # populate the methods dict with the versions from the onyx query.
+            onyx_versions, exitcode = _get_versions_from_onyx(
+                sample_id=sample_id, server=server_name
+            )
+
+            if exitcode != 0:
+                logging.error(
+                    "Error: Onyx cannot query sample-ID for versions to pre-populate the methods dict."
+                )
+                methods_fail = True
+                return methods_fail
+
+            # Append those onyx versions
+            versions_dicts.extend(onyx_versions)
+
+        # Add any additional versions that need to go into the analysis table. Must be dict.
+        if tool_versions:
+            if not isinstance(tool_versions, dict):
+                logging.error("Error: tool_versions must be in dict format: e.g. {'tool': '1.0.0'}")
+                methods_fail = True
+                return methods_fail
+
+            for tool, version in tool_versions.items():
+                versions_dicts.append({"name": tool, "version": version})
+
+        # Add versions_dicts to the analysis table
+        self.methods["versions"] = versions_dicts
+        # methods did not fail
+        return methods_fail
+
+    def add_methods(self, methods_dict: dict) -> bool:
+        """
+        Attempts to add methods to onyx analysis object. If methods are invalid, returns
+        methods_fail.
+
+        DO NOT provide 'versions' with this method, use add_versions_to_methods instead.
+
+        Arguments:
+            method_dicts: dict containing methods to add. Recommended to be nested but doesn't have
+            to be.
+                e.g.: {"thresholds": {"cutoff": 1, "limit": 2}} or {"command": "tool --defaults"}
+                or a combination of both.
+
+        Returns:
+            methods_fail: true if fail, check logging message.
+        """
+        methods_fail = False
+
+        if not isinstance(methods_dict, dict):
+            logging.error("Error: Methods must be in dict format.")
+            methods_fail = True
+            return methods_fail
+
+        for method_name, method_params in methods_dict.items():
+            if method_name == "version" or method_name == "versions":
+                logging.error(
+                    (  # noqa: UP031
+                        "Error: Cannot add '%s' to the methods field with add_methods. "
+                        "Use add_versions_to_methods to add versions."
+                    )
+                    % (method_name)
+                )
+                methods_fail = True
+                return methods_fail
+            self.methods[method_name] = method_params
         return methods_fail
 
     def add_results(self, top_result: str, results_dict: dict) -> bool:
@@ -171,7 +319,7 @@ class OnyxAnalysis:
         """
         if isinstance(results_dict, dict):
             self.result = top_result
-            self.result_metrics = json.dumps(results_dict)
+            self.result_metrics: dict = results_dict
             results_fail = False
         else:
             logging.error("Error: result_metrics must be in dict format")
@@ -186,7 +334,7 @@ class OnyxAnalysis:
         server_records = f"{server_name}_records"
         setattr(self, server_records, [sample_id])
 
-    def add_output_location(self, result_path: os.path) -> bool:
+    def add_output_location(self, result_path: Path) -> bool:
         """Adds result location to analysis object. If results are in a
         file, adds a report field. If results are in a folder, adds
         an outputs field.
@@ -225,16 +373,24 @@ class OnyxAnalysis:
         """
         self.is_published = publish_analysis
 
+        fields_dict: dict[str, str | dict | Path | list | None] = vars(self)
+        # make sure all attributes are json strings:
+        fields_dict["methods"] = json.dumps(self.methods)
+        fields_dict["result_metrics"] = json.dumps(self.result_metrics)
+
         with OnyxClient(CONFIG) as client:
-            result = client.create_analysis(project=server, fields=vars(self), test=dryrun)
+            result = client.create_analysis(project=server, fields=fields_dict, test=dryrun)
         exitcode = 0
 
         return result, exitcode
 
     # Write analysis object to json
-    def write_analysis_to_json(self, result_file: os.path) -> None:
+    def write_analysis_to_json(self, result_file: Path) -> Path | None:
         "Writes onyx analysis object to json"
         fields_dict = vars(self)
+        # make sure all attributes are json strings:
+        fields_dict["methods"] = json.dumps(self.methods)
+        fields_dict["result_metrics"] = json.dumps(self.result_metrics)
 
         with Path(result_file).open("w") as file:
             json.dump(fields_dict, file)
@@ -286,7 +442,7 @@ class OnyxAnalysis:
 
     def _check_required_outputs(self) -> bool:
         "Checks output field is present, returns True if missing"
-        fields_dict = vars(self)
+        fields_dict: dict[str, Any] = vars(self)
         missing_output = False
         output_fields = ["report", "outputs"]
 
@@ -335,7 +491,7 @@ class OnyxAnalysis:
         return attribute_fail
 
     # Read in analysis information from json
-    def read_analysis_from_json(self, analysis_json: os.path) -> None:
+    def read_analysis_from_json(self, analysis_json: Path) -> None:
         "Reads analysis object from json and sets class attributes"
         with Path(analysis_json).open("r") as file:
             data = json.load(file)
@@ -371,6 +527,8 @@ class OnyxAnalysis:
     def _set_analysis_attributes(self, analysis_dict: dict) -> None:
         "Sets class attributes from input dictionary"
         for key, value in analysis_dict.items():
+            if key == "result_metrics" or key == "methods":
+                value = json.loads(value)  # these need loading into dict type.
             setattr(self, key, value)
 
     @call_to_onyx
