@@ -81,7 +81,9 @@ methods_fail = onyx_analysis.add_methods(
 # If you want to add any versions of anything, you must use the "add_versions_to_methods" method.
 # This can be used without using add_methods beforehand. In this example, the above code runs first:
 methods_versions_fail = onyx_analysis.add_versions_to_methods(
-    tool_versions = {"my_dependency_version": pkg.__version__, "other_tool": "2.0.0"})
+    tool_versions = {"my_dependency_version": pkg.__version__, "other_tool": "2.0.0"},
+    # This is optional and defaults to False:
+    include_versions_hash = True)
 
         # What will methods now look like?
         {"methods": {
@@ -90,7 +92,8 @@ methods_versions_fail = onyx_analysis.add_versions_to_methods(
             "versions": [
                 {"name": "my_dependency_version", "version": "1.0.0"},
                 {"name": "other_tool", "version": "2.0.0"}
-            ]
+            ],
+            "versions_hash": "<some_long_hash>"
             }
         }
 
@@ -102,7 +105,9 @@ methods_versions_fail = onyx_analysis.add_versions_to_methods(
         sample_id = "ID_11111"
         server_name = "server",
         # this is optional:
-        tool_versions = {"my_dependency_version": pkg.__version__, "other_tool": "2.0.0"}
+        tool_versions = {"my_dependency_version": pkg.__version__, "other_tool": "2.0.0"},
+        # this is optional and defaults to False:
+        include_versions_hash = True
    )
 
         # What does this now look like?
@@ -115,16 +120,6 @@ methods_versions_fail = onyx_analysis.add_versions_to_methods(
                 {"name": "database_from_onyx", "version": "1.0.0"},
                 {"name": "tool_version_from_onyx", "version": "1.0.0"}
             ],
-            }
-        }
-
-
-# Once versions have been populated, add a hash calculated from methods["versions"].
-# This writes methods["versions_hash"] and overwrites it if called again.
-versions_hash_fail = onyx_analysis.add_versions_hash_to_methods()
-
-        # The methods dict will now also include:
-        {"methods": {
             "versions_hash": "<some_long_hash>"
             }
         }
