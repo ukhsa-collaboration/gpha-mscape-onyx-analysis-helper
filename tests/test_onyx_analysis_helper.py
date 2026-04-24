@@ -732,6 +732,69 @@ def test_extra_field_in_version_dict_changes_hash():
     )
 
 
+def test_add_versions_hash_to_methods():
+    """Test adding a versions hash to the methods dict."""
+    analysis = oa.OnyxAnalysis()
+    analysis.methods = {
+        "versions": [
+            {"name": "this_tool_doesnt_exist", "version": "v1.2.3"},
+            {"name": "neither_does_this_one", "version": "1.0.0"},
+        ]
+    }
+
+    methods_fail = analysis.add_versions_hash_to_methods()
+
+    assert not methods_fail
+    assert analysis.methods["versions_hash"] == oa._calculate_versions_hash(
+        analysis.methods["versions"]
+    )
+
+
+def test_add_versions_hash_to_methods_replaces():
+    """Test versions hash is overwritten when versions change."""
+    analysis = oa.OnyxAnalysis()
+    analysis.methods = {
+        "versions": [
+            {"name": "this_tool_doesnt_exist", "version": "v1.2.3"},
+            {"name": "neither_does_this_one", "version": "1.0.0"},
+        ]
+    }
+
+    first_methods_fail = analysis.add_versions_hash_to_methods()
+    first_hash = analysis.methods["versions_hash"]
+
+    analysis.methods["versions"].append({"name": "important_database", "version": "2026-04-24"})
+    second_methods_fail = analysis.add_versions_hash_to_methods()
+
+    assert not first_methods_fail
+    assert not second_methods_fail
+    assert analysis.methods["versions_hash"] != first_hash
+
+
+def test_add_versions_hash_to_methods_missing_versions_fails(caplog):
+    """Test missing versions list fails"""
+    analysis = oa.OnyxAnalysis()
+    analysis.methods = {"thresholds": {"limit": 10}}
+
+    methods_fail = analysis.add_versions_hash_to_methods()
+
+    assert methods_fail
+    assert "Error: versions must be present in methods before calculating versions_hash" in caplog.text
+    assert "versions_hash" not in analysis.methods
+
+
+def test_add_versions_hash_to_methods_wrong_type_fails(caplog):
+    """Test non-list versions fail"""
+    analysis = oa.OnyxAnalysis()
+    analysis.methods = {"versions": {"name": "this_tool_doesnt_exist", "version": "v1.2.3"}}
+
+    methods_fail = analysis.add_versions_hash_to_methods()
+
+    assert methods_fail
+    assert "Error: versions must be a list before calculating versions_hash" in caplog.text
+    assert "versions_hash" not in analysis.methods
+
+
 def test_add_methods(caplog):
     expected_methods = {
         "thresholds": {"limit": 10},
