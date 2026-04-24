@@ -271,8 +271,11 @@ class OnyxAnalysis:
             for tool, version in tool_versions.items():
                 versions_dicts.append({"name": tool, "version": version})
 
-        # Add versions_dicts to the analysis table
-        self.methods["versions"] = versions_dicts
+        # Add versions_dicts to the analysis table but don't overwrite
+        if methods_versions := self.methods.get("versions"):
+            methods_versions.extend(versions_dicts)
+        else:
+            self.methods["versions"] = versions_dicts
         # methods did not fail
         return methods_fail
 

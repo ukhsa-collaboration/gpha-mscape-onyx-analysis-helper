@@ -628,6 +628,30 @@ def test_add_versions_to_methods_plus_tools(mock_method, caplog):
     print(f"\nThe methods field correctly looks like: \n{analysis.methods}")
 
 
+def test_add_versions_do_not_overwrite(caplog):
+    """
+    Test that adding versions doesn't overwrite
+    """
+    expected_methods = {
+        "versions": [
+            {"name": "tool", "version": "1.0.0"},
+            {"name": "my_pkg", "version": "v1.2.3"},
+            {"name": "my_other_pkg", "version": "v2.3.4"},
+        ]
+    }
+    analysis = oa.OnyxAnalysis()
+    analysis.methods = {"versions": [{"name": "tool", "version": "1.0.0"}]}
+    methods_fail = analysis.add_versions_to_methods(
+        tool_versions={"my_pkg": "v1.2.3"},
+    )
+    assert not methods_fail
+    methods_fail_2 = analysis.add_versions_to_methods(
+        tool_versions={"my_other_pkg": "v2.3.4"},
+    )
+    assert not methods_fail_2
+    assert analysis.methods == expected_methods
+
+
 def test_add_versions_to_methods_broken_onyx(caplog):
     """
     Test that methods_fail if the onyx call doesn't work.
