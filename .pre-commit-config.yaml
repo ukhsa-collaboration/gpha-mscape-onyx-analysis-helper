@@ -15,3 +15,11 @@ repos:
       name: Check for a blank line at the end of scripts (auto-fixes)
     - id: end-of-file-fixer
       name: Check for trailing whitespaces (auto-fixes)
+- repo: local
+  hooks:
+    - id: climb-id-checker
+      name: Check if climb ID pattern is present.
+      types: ["file"]
+      args: [--multiline]
+      entry: '[CA]-[A-F0-9]{5}'
+      language: pygrep
