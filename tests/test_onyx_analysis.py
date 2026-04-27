@@ -4,7 +4,6 @@
 Unit tests for functions in the onyx_analysis.py
 script in bin/.
 """
-
 import json
 import logging
 import os
