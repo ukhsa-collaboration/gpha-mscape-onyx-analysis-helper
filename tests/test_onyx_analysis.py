@@ -13,6 +13,7 @@ import boto3
 import pytest
 from moto import mock_aws
 from moto.server import ThreadedMotoServer
+
 from onyx_analysis_helper import onyx_analysis as oas
 from onyx_analysis_helper import s3_functions as s3f  # noqa: F401
 
