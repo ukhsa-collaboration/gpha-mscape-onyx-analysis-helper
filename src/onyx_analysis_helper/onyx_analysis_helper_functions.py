@@ -130,40 +130,71 @@ def _calculate_versions_hash(versions: list[dict[str, str | None]]) -> str:
 
 
 @call_to_onyx
-def _get_versions_from_onyx(sample_id: str, server: str) -> tuple[list[dict[str, str | None]], int]:
+def query_onyx(
+    sample_id: str,
+    server: str,
+) -> tuple[dict, int]:
     """
-    Get the various database and tool versions from Onyx.
+    Query to onyx using OnyxClient.get for single sample and specified server.
 
-    # TODO:
-    Remove if statement.
-    There is an if statement to check if all versions are in one Onyx field. Note the 'else' is then
-    only required if this does not exist in Onyx, so cnce it does, this 'else' statement is
-    superfluous.
+    Returns record first as dict and exitcode as int. Uses decorator so can only return record
+    and exitcode.
 
     Arguments:
             sample_id -- valid climb id.
-            server_name -- name of server to query.
+            server -- name of server to query.
+
         Returns:
+            record -- dict, the entire Onyx record, or just the fields requested in 'fields'
+                argument.
             versions_dicts -- list of dicts, where the dict contains "name" and "version".
                 e.g. [{"name": "tool", "version": "1.2.3"}, {"name": "db", "version": "2.3.4"}]
             exitcode -- 1 if fail 0 if pass
+
     """
     exitcode = 0
 
     with OnyxClient(CONFIG) as client:
         record: dict = client.get(project=server, climb_id=sample_id)
 
-        versions_dicts: list[dict[str, str | None]] = []
+    return record, exitcode
 
-        # Add a little check that the versions column in the db is as expected:
-        if (
-            (new_versions_dicts := record.get("versions"))
-            and isinstance(new_versions_dicts, list)
-            and isinstance(new_versions_dicts[0], dict)
-        ):
-            versions_dicts.extend(new_versions_dicts)
-            return versions_dicts, exitcode
 
+def get_data_and_versions_from_onyx(
+    sample_id: str, server: str, fields: list | None = None
+) -> tuple[dict, dict, int]:
+    """
+    Query to onyx for specific climb id and server, then handle versions from Onyx and return
+    just fields of interest if supplied.
+
+    Returns record first, specific versions dict and exitcode.
+
+    Arguments:
+            sample_id -- valid climb id.
+            server -- name of server to query.
+            fields -- optional, list of valid onyx fields to return in the record.
+        Returns:
+            record -- dict, the entire Onyx record, or just the fields requested in 'fields'
+                argument.
+            versions_dicts -- list of dicts, where the dict contains "name" and "version".
+                e.g. [{"name": "tool", "version": "1.2.3"}, {"name": "db", "version": "2.3.4"}]
+            exitcode -- 1 if fail 0 if pass
+
+    """
+    exitcode = 0
+    record: dict
+    record, exitcode = query_onyx(sample_id=sample_id, server=server)
+
+    versions_dicts: list[dict[str, str | None]] = []
+
+    # Add a little check that the versions column in the record is as expected:
+    if (
+        (new_versions_dicts := record.get("versions"))
+        and isinstance(new_versions_dicts, list)
+        and isinstance(new_versions_dicts[0], dict)
+    ):
+        versions_dicts.extend(new_versions_dicts)
+    else:
         # If 'versions' field not available in onyx, then define our own versions to get from onyx:
         versions_to_get = [
             "classifier_version",
@@ -176,7 +207,10 @@ def _get_versions_from_onyx(sample_id: str, server: str) -> tuple[list[dict[str,
         for ver in versions_to_get:
             versions_dicts.append({"name": ver, "version": record.get(ver)})
 
-        return versions_dicts, exitcode
+    if fields:
+        record: dict = {field: record[field] for field in fields}
+
+    return record, versions_dicts, exitcode  # ty:ignore[invalid-return-type]
 
 
 class OnyxAnalysis:
@@ -216,63 +250,43 @@ class OnyxAnalysis:
 
     def add_versions_to_methods(
         self,
-        include_onyx_versions: bool = False,
-        include_versions_hash: bool = False,
-        sample_id: str | None = None,
-        server_name: str | None = None,
         tool_versions: dict | None = None,
+        onyx_versions: list[dict] | None = None,
+        include_versions_hash: bool = False,
     ) -> bool:
         """
         Method to add versions to the methods field in the analysis table.
 
-        If Onyx versions are to be included, use 'include_onyx_versions = True', and 'sample_id' and
-        'server_name' MUST be supplied. This will then query Onyx for various predefined tool and
-        database versions, and populates the methods dict.
+        Give tool versions to record as a dict:
+            {'tool_name': '1.0.0'}
 
-        If other versions are to be added to the methods field, supply a dict to "tool_versions"
-        in the format {'tool_name': 'version'}. This will then be put into the correct format.
-
-        Choose one or both of these.
+        Give onyx_tool_versions as a dict - must be the output from query_onyx_with_versions.
 
         Arguments:
-            include_onyx_versions -- default is False, set to True if onyx versions should be
-                included.
-            include_versions_hash -- default is False, set to True to calculate and add
-                versions_hash to the methods dict after versions are added.
-            sample_id -- Optional (required if 'include_onyx_versions' is True). Valid climb id.
-            server_name -- Optional (required if 'include_onyx_versions' is True). Name of server to
-                query.
             tool_versions -- Optional; dict of other versions to put into the versions dict in the
                 methods. Must be in format {'tool_name': 'version'}
+            onyx_versions
+            include_versions_hash -- default is False, set to True to calculate and add
+                versions_hash to the methods dict after versions are added.
         Returns:
             methods_fail -- bool, False if successful, True if fail - check logs.
         """
         methods_fail = False
 
-        # There is a possibility that this method does nothing:
-        if not include_onyx_versions and not tool_versions:
+        # There is a chance this function does nothing, so bail early:
+        if not onyx_versions and not tool_versions:
             logging.warning("Warning: No suitable arguments provided, this method does nothing.")
             return methods_fail
 
         versions_dicts: list = []
 
-        if include_onyx_versions:
-            # Check if sample_id and server_name are supplied
-            if not sample_id or not server_name:
+        # Add onyx versions if there are any. Must be list.
+        if onyx_versions:
+            # If not list, bail early
+            if not isinstance(onyx_versions, list):
                 logging.error(
-                    "Error: 'include_onyx_versions' requires sample_id and server_name as arguments."
-                )
-                methods_fail = True
-                return methods_fail
-
-            # populate the methods dict with the versions from the onyx query.
-            onyx_versions, exitcode = _get_versions_from_onyx(
-                sample_id=sample_id, server=server_name
-            )
-
-            if exitcode != 0:
-                logging.error(
-                    "Error: Onyx cannot query sample-ID for versions to pre-populate the methods dict."
+                    "Error: Onyx versions must be given as list in format: "
+                    "[{'name': 'tool', 'version': '1.0.0'}]. Use outputs from query_onyx_with_versions."
                 )
                 methods_fail = True
                 return methods_fail
@@ -282,17 +296,18 @@ class OnyxAnalysis:
 
         # Add any additional versions that need to go into the analysis table. Must be dict.
         if tool_versions:
+            # if not dict, bail early
             if not isinstance(tool_versions, dict):
                 logging.error("Error: tool_versions must be in dict format: e.g. {'tool': '1.0.0'}")
                 methods_fail = True
                 return methods_fail
-
+            # Reformat the versions and add to the dict.
             for tool, version in tool_versions.items():
                 versions_dicts.append({"name": tool, "version": version})
 
         # Add versions_dicts to the analysis table but don't overwrite
-        if methods_versions := self.methods.get("versions"):
-            methods_versions.extend(versions_dicts)
+        if existing_versions := self.methods.get("versions"):
+            existing_versions.extend(versions_dicts)
         else:
             self.methods["versions"] = versions_dicts
 
