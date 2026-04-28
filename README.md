@@ -79,7 +79,8 @@ methods_fail = onyx_analysis.add_methods(
             }
 
 # If you want to add any versions of anything, you must use the "add_versions_to_methods" method.
-# This can be used without using add_methods beforehand. In this example, the above code runs first:
+# This can be used without using add_methods beforehand. In this example, the above code runs first,
+# then this runs:
 methods_versions_fail = onyx_analysis.add_versions_to_methods(
     tool_versions = {"my_dependency_version": pkg.__version__, "other_tool": "2.0.0"},
     # This is optional and defaults to False:
@@ -97,13 +98,21 @@ methods_versions_fail = onyx_analysis.add_versions_to_methods(
             }
         }
 
-# If you want to include versions that are stored in Onyx, use the same method and set
-# 'include_onyx_versions' to True, and provide a valid climb_id and server_name. You can also give
-# additional tool_versions here aswell:
+# If you want to include versions that are stored in Onyx, you must have retrieved the versions when
+# you first queried onyx for the data being analysed. (There is a function in the onyx analysis
+# helper that will do this.) Setting 'include_versions_hash' to True will add a hash of all the
+# versions supplied.
+# This method can be used many times or done in one method call, as in this example:
+
+# Query the data using the onyx analysis helper function:
+onyx_record, onyx_versions, exitcode = get_data_and_versions_from_onyx(sample_id="ID-123456", server="server")
+# In this case, the onyx_versions is a list of dicts that looks like this:
+[
+    {"name": "database_from_onyx", "version": "1.0.0"},
+    {"name": "tool_version_from_onyx", "version": "1.0.0"}
+]
 methods_versions_fail = onyx_analysis.add_versions_to_methods(
-        include_onyx_versions = True,
-        sample_id = "ID_11111"
-        server_name = "server",
+        oynx_versions = onyx_versions,
         # this is optional:
         tool_versions = {"my_dependency_version": pkg.__version__, "other_tool": "2.0.0"},
         # this is optional and defaults to False:
