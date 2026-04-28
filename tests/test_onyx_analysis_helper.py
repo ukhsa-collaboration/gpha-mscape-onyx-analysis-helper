@@ -569,10 +569,10 @@ def test_set_analysis_attributes(complete_field_dict_json, complete_field_dict):
     assert analysis.__dict__ == complete_field_dict
 
 
-def test_check_analysis_attributes_pass(complete_field_dict_json, complete_field_dict):
+def test_check_analysis_attributes_pass(complete_field_dict):
     analysis = oa.OnyxAnalysis()
     # populate the analysis table class with the attributes from the fixture:
-    for key, value in complete_field_dict_json.items():
+    for key, value in complete_field_dict.items():
         setattr(analysis, key, value)
     attr_fail = analysis._check_analysis_attributes()
 
@@ -583,8 +583,10 @@ def test_check_analysis_attributes_fail(invalid_field_dict, caplog):
     analysis = oa.OnyxAnalysis()
     for field, value in invalid_field_dict.items():
         setattr(analysis, field, value)
+    # methods should be dict before and after
+    assert isinstance(analysis.methods, dict)
     attr_fail = analysis._check_analysis_attributes()
-
+    assert isinstance(analysis.methods, dict)
     message = "Invalid attribute in onyx analysis: ['invalid_name']"
 
     assert message in caplog.text
@@ -626,10 +628,16 @@ def test_check_analysis_object(test_input, publish_boolean, expected_output, req
     analysis = oa.OnyxAnalysis()
     for field, value in fields_dict.items():
         setattr(analysis, field, value)
+
+    # methods and results_metrics should be dicts before and after:
+    assert isinstance(analysis.methods, dict)
+    assert isinstance(analysis.result_metrics, dict)
     status_list = analysis.check_analysis_object(publish_analysis=publish_boolean)
     # print("\n", status_list)
 
     assert status_list == expected_output
+    assert isinstance(analysis.methods, dict)
+    assert isinstance(analysis.result_metrics, dict)
 
 
 def test_add_output_location_dir(example_result_dir):

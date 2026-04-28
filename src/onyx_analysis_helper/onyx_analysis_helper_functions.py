@@ -162,7 +162,7 @@ def query_onyx(
 
 def get_data_and_versions_from_onyx(
     sample_id: str, server: str, fields: list | None = None
-) -> tuple[dict, dict, int]:
+) -> tuple[dict, list[dict], int]:
     """
     Query to onyx for specific climb id and server, then handle versions from Onyx and return
     just fields of interest if supplied.
@@ -210,7 +210,7 @@ def get_data_and_versions_from_onyx(
     if fields:
         record: dict = {field: record[field] for field in fields}
 
-    return record, versions_dicts, exitcode  # ty:ignore[invalid-return-type]
+    return record, versions_dicts, exitcode
 
 
 class OnyxAnalysis:
@@ -429,7 +429,7 @@ class OnyxAnalysis:
         Get all the fields in the analysis table, and convert the nested dictionaries into json
         strings.
         """
-        fields_dict: dict[str, str | dict | Path | list | None] = vars(self)
+        fields_dict: dict[str, str | dict | Path | list | None] = vars(self).copy()
         # make sure all attributes are json strings:
         fields_dict["methods"] = json.dumps(self.methods)
         fields_dict["result_metrics"] = json.dumps(self.result_metrics)
