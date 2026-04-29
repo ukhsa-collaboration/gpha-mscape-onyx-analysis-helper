@@ -112,7 +112,7 @@ onyx_record, onyx_versions, exitcode = get_data_and_versions_from_onyx(sample_id
     {"name": "tool_version_from_onyx", "version": "1.0.0"}
 ]
 methods_versions_fail = onyx_analysis.add_versions_to_methods(
-        oynx_versions = onyx_versions,
+        onyx_versions = onyx_versions,
         # this is optional:
         tool_versions = {"my_dependency_version": pkg.__version__, "other_tool": "2.0.0"},
         # this is optional and defaults to False:

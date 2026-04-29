@@ -260,7 +260,9 @@ class OnyxAnalysis:
         Give tool versions to record as a dict:
             {'tool_name': '1.0.0'}
 
-        Give onyx_tool_versions as a dict - must be the output from query_onyx_with_versions.
+        Give onyx__versions as a list of dicts - must be the output from
+        get_data_and_versions_from_onyx or in format list of dicts:
+        [{'name':'tool', 'version':'1.0.0'}]
 
         Arguments:
             tool_versions -- Optional; dict of other versions to put into the versions dict in the
@@ -286,7 +288,8 @@ class OnyxAnalysis:
             if not isinstance(onyx_versions, list):
                 logging.error(
                     "Error: Onyx versions must be given as list in format: "
-                    "[{'name': 'tool', 'version': '1.0.0'}]. Use outputs from query_onyx_with_versions."
+                    "[{'name': 'tool', 'version': '1.0.0'}]. Use outputs from "
+                    "get_data_and_versions_from_onyx."
                 )
                 methods_fail = True
                 return methods_fail
