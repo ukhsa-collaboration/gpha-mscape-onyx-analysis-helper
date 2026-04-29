@@ -624,11 +624,12 @@ class OnyxAnalysis:
                       None if upload fails
             exitcode -- 0 if successful, 1 if fail
         """
+        fields = self._get_fields()
         self.is_published = publish_analysis
 
         with OnyxClient(CONFIG) as client:
             result = client.update_analysis(
-                project=server, analysis_id=analysis_id, fields=vars(self), test=dryrun
+                project=server, analysis_id=analysis_id, fields=fields, test=dryrun
             )
 
         exitcode = 0
