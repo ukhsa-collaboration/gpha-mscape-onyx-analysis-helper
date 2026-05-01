@@ -188,9 +188,9 @@ class OnyxAnalysis:
         self.pipeline_url: str
         self.pipeline_version: str
         self.pipeline_command: str | None
-        self.methods: dict = {}
+        self.methods: dict
         self.result: str
-        self.result_metrics: dict = {}
+        self.result_metrics: dict
         self.report: Path | None
         self.outputs: Path | None
         self.upstream_analyses: str | None
@@ -248,6 +248,10 @@ class OnyxAnalysis:
             methods_fail -- bool, False if successful, True if fail - check logs.
         """
         methods_fail = False
+
+        # If attribute not yet set, set as empty dict.
+        if not hasattr(self, "methods"):
+            self.methods = {}
 
         # There is a possibility that this method does nothing:
         if not include_onyx_versions and not tool_versions:
@@ -353,6 +357,10 @@ class OnyxAnalysis:
             methods_fail = True
             return methods_fail
 
+        # If attribute not yet set, set as empty dict.
+        if not hasattr(self, "methods"):
+            self.methods = {}
+
         for method_name, method_params in methods_dict.items():
             if method_name == "version" or method_name == "versions":
                 logging.error(
@@ -411,13 +419,14 @@ class OnyxAnalysis:
 
     def _get_fields(self) -> dict:
         """
-        Get all the fields in the analysis table, and convert the nested dictionaries into json
-        strings.
+        Get all the fields in the analysis table. If methods and results_metrics set, convert dicts
+        to json string.
         """
         fields_dict: dict[str, str | dict | Path | list | None] = vars(self)
-        # make sure all attributes are json strings:
-        fields_dict["methods"] = json.dumps(self.methods)
-        fields_dict["result_metrics"] = json.dumps(self.result_metrics)
+        for field, value in fields_dict.items():
+            if isinstance(value, dict):
+                fields_dict[field] = json.dumps(value)
+
         return fields_dict
 
     # Add in function to set s3 output path, other optional fields
