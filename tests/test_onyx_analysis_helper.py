@@ -342,17 +342,23 @@ def test__get_fields():
     assert isinstance(fields["result_metrics"], str)
 
 
-def test__get_fields_empty_instance():
+def test__get_fields_empty():
     analysis = oa.OnyxAnalysis()
-
-    # Before function:
-    assert isinstance(analysis.methods, dict)
-    assert isinstance(analysis.result_metrics, dict)
-
     fields = analysis._get_fields()
-    # after function
-    assert isinstance(fields["methods"], str)
-    assert isinstance(fields["result_metrics"], str)
+    assert len(fields) == 1
+
+
+def test__get_fields_other_field_is_dict():
+    analysis = oa.OnyxAnalysis()
+    analysis.add_analysis_details(
+        analysis_name="name",
+        analysis_description={"name": "analysis", "type": "details"},  # ty:ignore[invalid-argument-type]
+    )
+    print(analysis.__dict__)
+    assert isinstance(analysis.description, dict)
+    fields = analysis._get_fields()
+    print(fields)
+    assert isinstance(fields["description"], str)
 
 
 def test_add_package_metadata():
@@ -801,7 +807,7 @@ def test_add_versions_can_add_versions_hash():
 def test_add_versions_can_overwrite_versions_hash():
     """Test include_versions_hash overwrites an existing versions_hash."""
     analysis = oa.OnyxAnalysis()
-    analysis.methods["versions_hash"] = "i_am_a_existing_hash_!"
+    analysis.methods = {"versions_hash": "i_am_a_existing_hash_!"}
 
     methods_fail = analysis.add_versions_to_methods(
         include_onyx_versions=False,
