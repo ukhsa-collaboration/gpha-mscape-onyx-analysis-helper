@@ -12,7 +12,6 @@ import os
 import time
 from functools import wraps
 from pathlib import Path
-from typing import Any
 
 from onyx import OnyxClient, OnyxConfig, OnyxEnv
 from onyx.exceptions import OnyxClientError, OnyxConfigError, OnyxConnectionError, OnyxHTTPError
@@ -189,7 +188,7 @@ class OnyxAnalysis:
         self.pipeline_url: str
         self.pipeline_version: str
         self.pipeline_command: str | None
-        self.methods: dict[str, list[dict[str, str | None]]] = {}
+        self.methods: dict
         self.result: str
         self.result_metrics: dict
         self.report: Path | None
@@ -250,6 +249,10 @@ class OnyxAnalysis:
         """
         methods_fail = False
 
+        # If attribute not yet set, set as empty dict.
+        if not hasattr(self, "methods"):
+            self.methods = {}
+
         # There is a possibility that this method does nothing:
         if not include_onyx_versions and not tool_versions:
             logging.warning("Warning: No suitable arguments provided, this method does nothing.")
@@ -296,7 +299,7 @@ class OnyxAnalysis:
             methods_versions.extend(versions_dicts)
         else:
             self.methods["versions"] = versions_dicts
-        
+
         if include_versions_hash:
             methods_fail = self.add_versions_hash_to_methods()
 
@@ -354,6 +357,10 @@ class OnyxAnalysis:
             methods_fail = True
             return methods_fail
 
+        # If attribute not yet set, set as empty dict.
+        if not hasattr(self, "methods"):
+            self.methods = {}
+
         for method_name, method_params in methods_dict.items():
             if method_name == "version" or method_name == "versions":
                 logging.error(
@@ -410,6 +417,18 @@ class OnyxAnalysis:
         if not hasattr(self, "analysis_date"):
             self.analysis_date = datetime.datetime.now().date().isoformat()
 
+    def _get_fields(self) -> dict:
+        """
+        Get all the fields in the analysis table. If methods and results_metrics set, convert dicts
+        to json string.
+        """
+        fields_dict: dict[str, str | dict | Path | list | None] = vars(self)
+        for field, value in fields_dict.items():
+            if isinstance(value, dict):
+                fields_dict[field] = json.dumps(value)
+
+        return fields_dict
+
     # Add in function to set s3 output path, other optional fields
     # Create analysis in Onyx
     @call_to_onyx
@@ -428,10 +447,7 @@ class OnyxAnalysis:
         """
         self.is_published = publish_analysis
 
-        fields_dict: dict[str, str | dict | Path | list | None] = vars(self)
-        # make sure all attributes are json strings:
-        fields_dict["methods"] = json.dumps(self.methods)
-        fields_dict["result_metrics"] = json.dumps(self.result_metrics)
+        fields_dict: dict[str, str | dict | Path | list | None] = self._get_fields()
 
         with OnyxClient(CONFIG) as client:
             result = client.create_analysis(project=server, fields=fields_dict, test=dryrun)
@@ -442,10 +458,7 @@ class OnyxAnalysis:
     # Write analysis object to json
     def write_analysis_to_json(self, result_file: Path) -> Path | None:
         "Writes onyx analysis object to json"
-        fields_dict = vars(self)
-        # make sure all attributes are json strings:
-        fields_dict["methods"] = json.dumps(self.methods)
-        fields_dict["result_metrics"] = json.dumps(self.result_metrics)
+        fields_dict = self._get_fields()
 
         with Path(result_file).open("w") as file:
             json.dump(fields_dict, file)
@@ -478,7 +491,7 @@ class OnyxAnalysis:
 
     def _check_required_fields(self) -> bool:
         "Checks all required fields are present, returns True if fields missing"
-        fields_dict = vars(self)
+        fields_dict = self._get_fields()
         missing_field = False
         required_fields = [
             "analysis_date",
@@ -497,7 +510,7 @@ class OnyxAnalysis:
 
     def _check_required_outputs(self) -> bool:
         "Checks output field is present, returns True if missing"
-        fields_dict: dict[str, Any] = vars(self)
+        fields_dict = self._get_fields()
         missing_output = False
         output_fields = ["report", "outputs"]
 
@@ -510,7 +523,7 @@ class OnyxAnalysis:
     def _check_analysis_attributes(self) -> bool:
         "Checks all attributes are valid onyx fields, return True if invalid fields present"
 
-        analysis_dict = vars(self)
+        analysis_dict = self._get_fields()
         attribute_fail = False
 
         valid_attributes = [
@@ -580,7 +593,8 @@ class OnyxAnalysis:
         return analysis_dict, exitcode
 
     def _set_analysis_attributes(self, analysis_dict: dict) -> None:
-        "Sets class attributes from input dictionary"
+        """Sets class attributes from input dictionary. Attributes that are dicts are parsed from
+        json as dicts into the instance."""
         for key, value in analysis_dict.items():
             if key == "result_metrics" or key == "methods":
                 value = json.loads(value)  # these need loading into dict type.

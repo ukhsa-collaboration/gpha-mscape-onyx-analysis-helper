@@ -122,7 +122,7 @@ def no_error_log():
 
 
 @pytest.fixture
-def missing_field_dict_json():
+def missing_field_dict():
     field_dict = {
         "description": "This is a test analysis",
         "analysis_date": "2025-08-21",
@@ -133,7 +133,14 @@ def missing_field_dict_json():
         "upstream_analyses": [],
         "report": "",
         "outputs": "path/to/outputs",
-        "methods": '{"versions": [{"name": "a_great_tool", "version": "1.0.0"}, {"name": "another_great_tool", "version": "2000.0.0"}], "thresholds": {"limit": 10}, "method2": "method example 2"}',
+        "methods": {
+            "versions": [
+                {"name": "a_great_tool", "version": "1.0.0"},
+                {"name": "another_great_tool", "version": "2000.0.0"},
+            ],
+            "thresholds": {"limit": 10},
+            "method2": "method example 2",
+        },
         "result_metrics": '{"Example result 1": 9, "Example result 2": "Fail", "Example result 3": 0.3}',
         "synthscape_records": ["ID-123456789"],
         "identifiers": [],
@@ -149,7 +156,7 @@ def missing_field_log():
 
 
 @pytest.fixture
-def missing_output_dict_json():
+def missing_output_dict():
     field_dict = {
         "name": "test-analysis",
         "description": "This is a test analysis",
@@ -159,8 +166,19 @@ def missing_output_dict_json():
         "pipeline_version": "0.1.0",
         "result": "test result",
         "upstream_analyses": [],
-        "methods": '{"versions": [{"name": "a_great_tool", "version": "1.0.0"}, {"name": "another_great_tool", "version": "2000.0.0"}], "thresholds": {"limit": 10}, "method2": "method example 2"}',
-        "result_metrics": '{"Example result 1": 9, "Example result 2": "Fail", "Example result 3": 0.3}',
+        "methods": {
+            "versions": [
+                {"name": "a_great_tool", "version": "1.0.0"},
+                {"name": "another_great_tool", "version": "2000.0.0"},
+            ],
+            "thresholds": {"limit": 10},
+            "method2": "method example 2",
+        },
+        "result_metrics": {
+            "Example result 1": 9,
+            "Example result 2": "Fail",
+            "Example result 3": 0.3,
+        },
         "synthscape_records": ["ID-123456789"],
         "identifiers": [],
     }
@@ -175,7 +193,7 @@ def missing_output_log():
 
 
 @pytest.fixture
-def missing_both_dict_json():
+def missing_both_dict():
     field_dict = {
         "description": "This is a test analysis",
         "analysis_date": "2025-08-21",
@@ -184,8 +202,19 @@ def missing_both_dict_json():
         "pipeline_version": "0.1.0",
         "result": "test result",
         "upstream_analyses": [],
-        "methods": '{"versions": [{"name": "a_great_tool", "version": "1.0.0"}, {"name": "another_great_tool", "version": "2000.0.0"}], "thresholds": {"limit": 10}, "method2": "method example 2"}',
-        "result_metrics": '{"Example result 1": 9, "Example result 2": "Fail", "Example result 3": 0.3}',
+        "methods": {
+            "versions": [
+                {"name": "a_great_tool", "version": "1.0.0"},
+                {"name": "another_great_tool", "version": "2000.0.0"},
+            ],
+            "thresholds": {"limit": 10},
+            "method2": "method example 2",
+        },
+        "result_metrics": {
+            "Example result 1": 9,
+            "Example result 2": "Fail",
+            "Example result 3": 0.3,
+        },
         "synthscape_records": ["ID-123456789"],
         "identifiers": [],
     }
@@ -215,7 +244,7 @@ def example_onyx_json_file_fail():
 
 
 @pytest.fixture
-def invalid_field_dict_json():
+def invalid_field_dict():
     field_dict = {
         "invalid_name": "test-analysis",
         "description": "This is a test analysis",
@@ -227,8 +256,19 @@ def invalid_field_dict_json():
         "upstream_analyses": [],
         "report": "",
         "outputs": "path/to/outputs",
-        "methods": '{"versions": [{"name": "a_great_tool", "version": "1.0.0"}, {"name": "another_great_tool", "version": "2000.0.0"}], "thresholds": {"limit": 10}, "method2": "method example 2"}',
-        "result_metrics": '{"Example result 1": 9, "Example result 2": "Fail", "Example result 3": 0.3}',
+        "methods": {
+            "versions": [
+                {"name": "a_great_tool", "version": "1.0.0"},
+                {"name": "another_great_tool", "version": "2000.0.0"},
+            ],
+            "thresholds": {"limit": 10},
+            "method2": "method example 2",
+        },
+        "result_metrics": {
+            "Example result 1": 9,
+            "Example result 2": "Fail",
+            "Example result 3": 0.3,
+        },
         "synthscape_records": ["ID-123456789"],
         "identifiers": [],
     }
@@ -277,6 +317,50 @@ def test_add_analysis_date_already_date():
     assert analysis.analysis_date == correct_date
 
 
+def test__get_fields():
+    analysis = oa.OnyxAnalysis()
+    analysis.methods = {
+        "versions": [
+            {"name": "a_great_tool", "version": "1.0.0"},
+            {"name": "another_great_tool", "version": "2000.0.0"},
+        ],
+        "thresholds": {"limit": 10},
+        "method2": "method example 2",
+    }
+    analysis.result_metrics = {
+        "Example result 1": 9,
+        "Example result 2": "Fail",
+        "Example result 3": 0.3,
+    }
+    # Before function:
+    assert isinstance(analysis.methods, dict)
+    assert isinstance(analysis.result_metrics, dict)
+
+    fields = analysis._get_fields()
+    # after function
+    assert isinstance(fields["methods"], str)
+    assert isinstance(fields["result_metrics"], str)
+
+
+def test__get_fields_empty():
+    analysis = oa.OnyxAnalysis()
+    fields = analysis._get_fields()
+    assert len(fields) == 1
+
+
+def test__get_fields_other_field_is_dict():
+    analysis = oa.OnyxAnalysis()
+    analysis.add_analysis_details(
+        analysis_name="name",
+        analysis_description={"name": "analysis", "type": "details"},  # ty:ignore[invalid-argument-type]
+    )
+    print(analysis.__dict__)
+    assert isinstance(analysis.description, dict)
+    fields = analysis._get_fields()
+    print(fields)
+    assert isinstance(fields["description"], str)
+
+
 def test_add_package_metadata():
     analysis = oa.OnyxAnalysis()
     analysis.add_package_metadata("climb-onyx-client")
@@ -317,8 +401,8 @@ def test_write_analysis_to_json(onyx_json_file_path, complete_field_dict):
 @pytest.mark.parametrize(
     "field_dict,expected_log_message,expected_output",
     [
-        ("complete_field_dict_json", "no_error_log", False),
-        ("missing_field_dict_json", "missing_field_log", True),
+        ("complete_field_dict", "no_error_log", False),
+        ("missing_field_dict", "missing_field_log", True),
     ],
 )
 def test_check_required_fields(field_dict, expected_log_message, expected_output, request, caplog):
@@ -339,13 +423,15 @@ def test_check_required_fields(field_dict, expected_log_message, expected_output
 @pytest.mark.parametrize(
     "field_dict,expected_log_message,expected_output",
     [
-        ("complete_field_dict_json", "no_error_log", False),
-        ("missing_output_dict_json", "missing_output_log", True),
+        ("complete_field_dict", "no_error_log", False),
+        ("missing_output_dict", "missing_output_log", True),
     ],
 )
 def test_check_required_outputs(field_dict, expected_log_message, expected_output, request, caplog):
     field_dict = request.getfixturevalue(field_dict)
     expected_log_message = request.getfixturevalue(expected_log_message)
+
+    assert isinstance(field_dict["methods"], dict)
 
     analysis = oa.OnyxAnalysis()
     # populate the analysis table class with the attributes from the fixture:
@@ -356,6 +442,7 @@ def test_check_required_outputs(field_dict, expected_log_message, expected_outpu
 
     assert all(messages in caplog.text for messages in expected_log_message)
     assert output_fail == expected_output
+    assert isinstance(field_dict["methods"], dict)
 
 
 def test_read_analysis_from_json_pass(example_onyx_json_file, complete_field_dict):
@@ -381,9 +468,9 @@ def test_check_analysis_attributes_pass(complete_field_dict_json, complete_field
     assert not attr_fail
 
 
-def test_check_analysis_attributes_fail(invalid_field_dict_json, caplog):
+def test_check_analysis_attributes_fail(invalid_field_dict, caplog):
     analysis = oa.OnyxAnalysis()
-    for field, value in invalid_field_dict_json.items():
+    for field, value in invalid_field_dict.items():
         setattr(analysis, field, value)
     attr_fail = analysis._check_analysis_attributes()
 
@@ -397,25 +484,25 @@ def test_check_analysis_attributes_fail(invalid_field_dict_json, caplog):
     "test_input,publish_boolean,expected_output",
     [
         pytest.param(
-            "missing_output_dict_json",
+            "missing_output_dict",
             False,
             [False, False],
             id="Correct input for prepublish analysis object - no errors",
         ),
         pytest.param(
-            "missing_both_dict_json",
+            "missing_both_dict",
             False,
             [True, False],
             id="Incorrect input for prepublish analysis object - missing field fail",
         ),
         pytest.param(
-            "complete_field_dict_json",
+            "complete_field_dict",
             True,
             [False, False, False],
             id="Correct input for publish analysis object - no errors",
         ),
         pytest.param(
-            "invalid_field_dict_json",
+            "invalid_field_dict",
             True,
             [True, True, False],
             id="Incorrect input for publish analysis object - missing field and invalid fields fails",
@@ -720,7 +807,7 @@ def test_add_versions_can_add_versions_hash():
 def test_add_versions_can_overwrite_versions_hash():
     """Test include_versions_hash overwrites an existing versions_hash."""
     analysis = oa.OnyxAnalysis()
-    analysis.methods["versions_hash"] = "i_am_a_existing_hash_!"
+    analysis.methods = {"versions_hash": "i_am_a_existing_hash_!"}
 
     methods_fail = analysis.add_versions_to_methods(
         include_onyx_versions=False,
