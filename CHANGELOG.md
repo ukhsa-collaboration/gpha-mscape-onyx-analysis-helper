@@ -1,3 +1,14 @@
+# v0.5.0 - April 2026
+## Added:
+- simple function to query onyx with decorator
+- function to wrap around query and return versions and fields.
+
+## changed:
+- add_versions_to_methods no longer queries, user must provide onyx versions.
+- docs updated
+
+
+
 # v0.4.0 - April 2026
 
 ## Added:
