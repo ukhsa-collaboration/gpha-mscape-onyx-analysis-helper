@@ -1,11 +1,18 @@
 # v0.5.0 - April 2026
 ## Added:
-- simple function to query onyx with decorator
-- function to wrap around query and return versions and fields.
+- simple function (query_onyx) to query onyx with decorator
+- function (get_data_and_versions_from_onyx) to wrap around query and return versions and fields.
+Recommendation going forward is  that modules that require versions must use this function to query,
+or write a query that returns the necessary functions.
 
-## changed:
+## Changed:
 - add_versions_to_methods no longer queries, user must provide onyx versions.
 - docs updated
+
+## Fixed:
+- the way dicts are handled in the analysis table class instance vs as json in the outputs. Added
+_get_fields function that wrangles this neatly. Attributes are not instantiated unless added
+explicitly.
 
 
 
