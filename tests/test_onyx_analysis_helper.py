@@ -403,6 +403,27 @@ def test_get_data_and_versions_from_onyx_and_fields(mocked_onyx_get, caplog):
     print(f"Got these versions from Onyx record (mock): {actual_versions_dicts}")
 
 
+def test_onyx_query_fails(caplog):
+    record, exitcode = oa.query_onyx("ID_123456", "SERVER")
+    assert record is None
+    assert exitcode == 1
+    assert "OnyxConnectionError" in caplog.text
+    print(f"\nLog text: \n{caplog.text}")
+
+
+def test_get_data_and_versions_from_onyx_fails_to_query(caplog):
+    record, actual_versions_dicts, exitcode = oa.get_data_and_versions_from_onyx(
+        sample_id="ID-123456", server="SERVER"
+    )
+
+    assert record == {}
+    assert exitcode == 1
+    assert actual_versions_dicts == []
+    assert "OnyxConnectionError" in caplog.text
+    assert "Error: Onyx query failed for sample ID ID-123456 and server SERVER." in caplog.text
+    print(f"\nLog text: \n{caplog.text}")
+
+
 #####################################
 # Onyx analysis Helper class Tests: #
 

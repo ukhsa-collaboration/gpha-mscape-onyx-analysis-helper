@@ -187,6 +187,13 @@ def get_data_and_versions_from_onyx(
 
     versions_dicts: list[dict[str, str | None]] = []
 
+    if exitcode != 0:
+        logging.error(
+            "Error: Onyx query failed for sample ID %s and server %s." % (sample_id, server)  # noqa: UP031
+        )
+        # if onyx call did not work, return an empty record, empty versions and exitcode 1.
+        return {}, [], 1
+
     # Add a little check that the versions column in the record is as expected:
     if (
         (new_versions_dicts := record.get("versions"))
