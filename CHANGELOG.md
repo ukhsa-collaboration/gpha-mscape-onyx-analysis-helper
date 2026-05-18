@@ -1,3 +1,10 @@
+# v0.5.1 - Hotfix Onyx Query Failures
+
+## Fixed:
+If initial Onyx query fails, the record is returned as None. The wrapper then tries to use
+`record.get()` which does not work on nonetype. The wrapper now checks the exitcode, and if not 0,
+writes a line to the log, returns empty record dict, empty versions list, and exitcode 1.
+
 # v0.5.0 - April 2026
 ## Added:
 - simple function (query_onyx) to query onyx with decorator
