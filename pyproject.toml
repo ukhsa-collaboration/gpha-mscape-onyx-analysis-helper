@@ -1,6 +1,6 @@
 [project] # Update all fields in this section
 name = "onyx-analysis-helper"
-version = "0.4.0"
+dynamic = ["version"]
 description = "Repository containing helper functions to support interactions with onyx analysis tables"
 authors = [{name = "Deborah Greer", email = "deborah.greer@ukhsa.gov.uk"}]
 requires-python = ">=3.12"
@@ -10,7 +10,7 @@ dependencies = ["climb-onyx-client", "pandas", "boto3", "regex"]
 version = {attr = "onyx_analysis_helper.__version__"} # Add underscore separated repo name here
 
 [project.optional-dependencies] # Dependencies for developers only - add more if required
-dev = ["ruff>=0.4.10,<0.5", "pytest", "pre-commit", "regex", "moto[s3, server]"]
+dev = ["ruff", "pytest", "pre-commit", "regex", "moto[s3, server]"]
 extra = ["pyyaml"]
 
 [build-system] # Leave this section
