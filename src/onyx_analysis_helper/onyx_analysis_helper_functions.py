@@ -170,15 +170,15 @@ def get_data_and_versions_from_onyx(
     Returns record first, specific versions dict and exitcode.
 
     Arguments:
-            sample_id -- valid climb id.
-            server -- name of server to query.
-            fields -- optional, list of valid onyx fields to return in the record.
-        Returns:
-            record -- dict, the entire Onyx record, or just the fields requested in 'fields'
-                argument.
-            versions_dicts -- list of dicts, where the dict contains "name" and "version".
-                e.g. [{"name": "tool", "version": "1.2.3"}, {"name": "db", "version": "2.3.4"}]
-            exitcode -- 1 if fail 0 if pass
+        sample_id -- valid climb id.
+        server -- name of server to query.
+        fields -- optional, list of valid onyx fields to return in the record.
+    Returns:
+        record -- dict, the entire Onyx record, or just the fields requested in 'fields'
+            argument.
+        versions_dicts -- list of dicts, where the dict contains "name" and "version".
+            e.g. [{"name": "tool", "version": "1.2.3"}, {"name": "db", "version": "2.3.4"}]
+        exitcode -- 1 if fail 0 if pass
 
     """
     exitcode = 0
@@ -218,6 +218,64 @@ def get_data_and_versions_from_onyx(
         record: dict = {field: record[field] for field in fields}
 
     return record, versions_dicts, exitcode
+
+
+# Query analysis tables
+@call_to_onyx
+def get_analysis_records(sample_id: str, server: str, fields: list = []) -> tuple[dict, int]:  # noqa: B006
+    """
+    Query onyx to get all analysis tables associated with a given sample ID on a given server.
+
+    Arguments:
+        sample_id -- valid climb id.
+        server -- name of server to query.
+        fields -- optional, list of valid onyx fields to return in the record.
+    Returns:
+        analysis_recs -- a dictionary where key is the analysis ID, and value is the record.
+        exitcode -- 1 if fail 0 if pass
+    """
+    exitcode = 0
+    if fields:
+        fields.append("analysis_id")
+
+    analysis_recs: dict = {}
+
+    with OnyxClient(CONFIG) as client:
+        analyses: dict = client.analyses(project=server, climb_id=sample_id)
+
+        analysis_ids = [analysis["analysis_id"] for analysis in analyses]
+
+        if not analysis_ids:
+            logging.info("No analysis tables found for sample %s on server %s.", sample_id, server)
+            return {}, exitcode
+
+        for aid in analysis_ids:
+            analysis_rec = client.get_analysis(project=server, analysis_id=aid, include=fields)
+
+            analysis_recs[analysis_rec.pop("analysis_id")] = analysis_rec
+
+    return analysis_recs, exitcode
+
+
+def truncate_version(version: str, use_version: str = "PATCH"):
+    """
+    Truncate semver version to 'use_version'.
+
+    Arguments
+        version -- str, the version to be truncated, i.e. '1.2.3' - can be longer, will strip off
+            letters.
+        use_version -- str, must be one of MAJOR, MINOR or PATCH.
+    Returns:
+        new version -- version truncated at the point given by use_version.
+    """
+    semver = ["MAJOR", "MINOR", "PATCH"]
+    use_version = use_version.upper()
+    if use_version and use_version in semver:
+        v = version.split("-")[0] if "-" in version else version
+        v = v.split(".")[0 : (semver.index(use_version) + 1)]
+    else:
+        raise ValueError('use_version must be one of "MAJOR", "MINOR", "PATCH"')
+    return ".".join(v)
 
 
 class OnyxAnalysis:
