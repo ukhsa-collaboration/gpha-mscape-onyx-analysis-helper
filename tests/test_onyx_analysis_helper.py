@@ -8,6 +8,7 @@ WARNING: Using --basetemp on an existing folder will overwrite all files.
 """
 
 import datetime
+import logging
 from pathlib import Path
 from unittest.mock import patch
 
@@ -1067,3 +1068,59 @@ def test_add_methods_broken_methods_dict_input(caplog):
     assert "Error: Methods must be in dict format." in caplog.text
     assert methods_fail
     print("Error correctly caught when input type not dict.")
+
+
+@pytest.mark.parametrize(
+    "vers,truncate,expect",
+    [
+        ("1.2.3", "MAJOR", "1"),
+        ("1.2.3", "MINOR", "1.2"),
+        ("1.2.3", "PATCH", "1.2.3"),
+        ("1.2.3-rc.4", "MINOR", "1.2"),
+        ("1.2.3-rc.4", "PATCH", "1.2.3"),
+        ("not a version", "MAJOR", "not a version"),
+    ],
+)
+def test_truncate_version(vers, truncate, expect):
+    actual = oa.truncate_version(vers, truncate)
+    assert actual == expect
+
+
+MOCK_ANALYSIS_RECORD = [
+    {
+        "published_date": "1970-01-01",
+        "site": "test",
+        "analysis_id": "AID-12345678",
+        "analysis_date": "1970-01-01",
+        "name": "test-analysis",
+        "report": "",
+        "outputs": "path/to/file.json",
+    }
+]
+
+
+@patch("onyx_analysis_helper.onyx_analysis_helper_functions.OnyxClient.get_analysis")
+@patch("onyx_analysis_helper.onyx_analysis_helper_functions.OnyxClient.analyses")
+def test_get_analysis_records(mocked_analyses, mocked_analysis_table, complete_field_dict):
+    analysis_record = complete_field_dict.copy()
+    analysis_record["analysis_id"] = "AID_12345678"
+
+    mocked_analyses.return_value = MOCK_ANALYSIS_RECORD
+    mocked_analysis_table.return_value = analysis_record
+
+    analyses_records, exitcode = oa.get_analysis_records(sample_id="ID-123456", server="")
+
+    assert len(analyses_records) == 1
+    assert exitcode == 0
+
+
+@patch("onyx_analysis_helper.onyx_analysis_helper_functions.OnyxClient.analyses")
+def test_get_analysis_records_no_analyses(mocked_analyses, caplog):
+    caplog.set_level(logging.INFO)
+
+    mocked_analyses.return_value = []
+
+    analyses_records, exitcode = oa.get_analysis_records(sample_id="ID-123456", server="")
+    assert "No analysis tables found for sample ID-123456" in caplog.text
+    assert analyses_records == {}
+    assert exitcode == 0
