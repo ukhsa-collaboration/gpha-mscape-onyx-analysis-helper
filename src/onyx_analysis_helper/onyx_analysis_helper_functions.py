@@ -214,9 +214,6 @@ def get_data_and_versions_from_onyx(
         for ver in versions_to_get:
             versions_dicts.append({"name": ver, "version": record.get(ver)})
 
-    onyx_versions_hash = _calculate_versions_hash(versions_dicts)
-    versions_dicts.append({"name": "onyx_versions_hash", "version": onyx_versions_hash})
-
     if fields:
         record: dict = {field: record[field] for field in fields}
 

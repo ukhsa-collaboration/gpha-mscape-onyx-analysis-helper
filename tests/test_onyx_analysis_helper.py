@@ -348,14 +348,7 @@ def test_get_data_and_versions_from_onyx(mocked_onyx_get, caplog):
     )
 
     assert "site" in record and "data" in record
-    assert actual_versions_dicts[-1]["version"] == oa._calculate_versions_hash(
-        EXPECTED_VERSIONS_DICTS  # ty:ignore[invalid-argument-type]
-    )
-    assert all(
-        version_dict
-        for version_dict in EXPECTED_VERSIONS_DICTS
-        if version_dict in actual_versions_dicts
-    )
+    assert actual_versions_dicts == EXPECTED_VERSIONS_DICTS
     assert exitcode == 0
     print(caplog.text)
     print(f"Got these versions from Onyx record (mock): {actual_versions_dicts}")
@@ -382,14 +375,7 @@ def test__get_data_and_versions_from_onyx(mocked_onyx_get, caplog):
     )
 
     assert "site" in record and "data" in record
-    assert actual_versions_dicts[-1]["version"] == oa._calculate_versions_hash(
-        expected_versions_dicts  # ty:ignore[invalid-argument-type]
-    )
-    assert all(
-        version_dict
-        for version_dict in EXPECTED_VERSIONS_DICTS
-        if version_dict in actual_versions_dicts
-    )
+    assert actual_versions_dicts == expected_versions_dicts
     assert exitcode == 0
     print(caplog.text)
     print(f"Got these versions from Onyx record (mock): {actual_versions_dicts}")
@@ -412,14 +398,7 @@ def test_get_data_and_versions_from_onyx_and_fields(mocked_onyx_get, caplog):
     )
 
     assert "site" not in record and "data" in record
-    assert actual_versions_dicts[-1]["version"] == oa._calculate_versions_hash(
-        EXPECTED_VERSIONS_DICTS  # ty:ignore[invalid-argument-type]
-    )
-    assert all(
-        version_dict
-        for version_dict in EXPECTED_VERSIONS_DICTS
-        if version_dict in actual_versions_dicts
-    )
+    assert actual_versions_dicts == EXPECTED_VERSIONS_DICTS
     assert exitcode == 0
     print(caplog.text)
     print(f"Got these versions from Onyx record (mock): {actual_versions_dicts}")
