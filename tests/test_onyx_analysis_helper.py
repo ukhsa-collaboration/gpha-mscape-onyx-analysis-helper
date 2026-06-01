@@ -1094,23 +1094,108 @@ MOCK_ANALYSIS_RECORD = [
         "analysis_date": "1970-01-01",
         "name": "test-analysis",
         "report": "",
-        "outputs": "path/to/file.json",
+        "outputs": "path/to/outputs/file.json",
     }
 ]
 
+MOCK_ANALYSIS_TABLE = {
+    "name": "test-analysis",
+    "description": "This is a test analysis",
+    "analysis_date": "1970-01-01",
+    "pipeline_name": "test-pipeline",
+    "pipeline_url": "test-pipeline-url",
+    "pipeline_version": "0.1.0",
+    "result": "test result",
+    "upstream_analyses": [],
+    "report": "",
+    "outputs": "path/to/outputs/file.json",
+    "methods": {
+        "versions": [
+            {"name": "a_great_tool", "version": "1.0.0"},
+            {"name": "another_great_tool", "version": "2000.0.0"},
+        ],
+        "thresholds": {"limit": 10},
+        "method2": "method example 2",
+    },
+    "result_metrics": {
+        "Example result 1": 9,
+        "Example result 2": "Fail",
+        "Example result 3": 0.3,
+    },
+    "synthscape_records": ["ID-123456789"],
+    "identifiers": [],
+    "analysis_id": "AID_12345678",
+}
 
-@patch("onyx_analysis_helper.onyx_analysis_helper_functions.OnyxClient.get_analysis")
-@patch("onyx_analysis_helper.onyx_analysis_helper_functions.OnyxClient.analyses")
-def test_get_analysis_records(mocked_analyses, mocked_analysis_table, complete_field_dict):
-    analysis_record = complete_field_dict.copy()
-    analysis_record["analysis_id"] = "AID_12345678"
+ANOTHER_MOCK_ANALYSIS_RECORD = [
+    {
+        "published_date": "1970-01-02",
+        "site": "test-the-second",
+        "analysis_id": "AID-89012345",
+        "analysis_date": "1970-01-02",
+        "name": "test-analysis",
+        "report": "",
+        "outputs": "path/to/file_2.json",
+    }
+]
 
-    mocked_analyses.return_value = MOCK_ANALYSIS_RECORD
-    mocked_analysis_table.return_value = analysis_record
+ANOTHER_MOCK_ANALYSIS_TABLE = {
+    "name": "test-analysis",
+    "description": "This is another test analysis",
+    "analysis_date": "1970-01-02",
+    "pipeline_name": "test-pipeline",
+    "pipeline_url": "test-pipeline-url",
+    "pipeline_version": "0.1.0",
+    "result": "another test result",
+    "upstream_analyses": [],
+    "report": "",
+    "outputs": "path/to/file_2.json",
+    "methods": {
+        "versions": [
+            {"name": "a_great_tool", "version": "1.0.0"},
+            {"name": "another_great_tool", "version": "2000.0.0"},
+        ],
+        "thresholds": {"limit": 10},
+        "method2": "method example 2",
+    },
+    "result_metrics": {
+        "Example result 1": 9,
+        "Example result 2": "Fail",
+        "Example result 3": 0.3,
+    },
+    "synthscape_records": ["ID-123456789"],
+    "identifiers": [],
+    "analysis_id": "AID-89012345",
+}
 
+
+@patch(
+    target="onyx_analysis_helper.onyx_analysis_helper_functions.OnyxClient.get_analysis",
+    return_value=MOCK_ANALYSIS_TABLE,
+)
+@patch(
+    target="onyx_analysis_helper.onyx_analysis_helper_functions.OnyxClient.analyses",
+    return_value=MOCK_ANALYSIS_RECORD,
+)
+def test_get_analysis_records(mocked_analyses, mocked_analysis_table):
     analyses_records, exitcode = oa.get_analysis_records(sample_id="ID-123456", server="")
-
     assert len(analyses_records) == 1
+    assert exitcode == 0
+
+
+@patch(
+    "onyx_analysis_helper.onyx_analysis_helper_functions.OnyxClient.analyses",
+)
+def test_get_analysis_records_multiple_analyses(mocked_analyses):
+    mocked_analyses.return_value = MOCK_ANALYSIS_RECORD + ANOTHER_MOCK_ANALYSIS_RECORD
+
+    with patch(
+        "onyx_analysis_helper.onyx_analysis_helper_functions.OnyxClient.get_analysis",
+        side_effect=[MOCK_ANALYSIS_TABLE, ANOTHER_MOCK_ANALYSIS_TABLE],
+    ):
+        analyses_records, exitcode = oa.get_analysis_records(sample_id="ID-123456", server="")
+        # print(analyses_records)
+    assert len(analyses_records) == 2
     assert exitcode == 0
 
 
