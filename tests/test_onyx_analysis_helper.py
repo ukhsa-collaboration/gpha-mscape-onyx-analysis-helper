@@ -1128,7 +1128,7 @@ MOCK_ANALYSIS_TABLE = {
     },
     "synthscape_records": ["ID-123456789"],
     "identifiers": [],
-    "analysis_id": "AID_12345678",
+    "analysis_id": "AID-12345678",
 }
 
 ANOTHER_MOCK_ANALYSIS_RECORD = [
@@ -1175,11 +1175,11 @@ ANOTHER_MOCK_ANALYSIS_TABLE = {
 
 @patch(
     target="onyx_analysis_helper.onyx_analysis_helper_functions.OnyxClient.get_analysis",
-    return_value=MOCK_ANALYSIS_TABLE,
+    return_value=MOCK_ANALYSIS_TABLE.copy(),
 )
 @patch(
     target="onyx_analysis_helper.onyx_analysis_helper_functions.OnyxClient.analyses",
-    return_value=MOCK_ANALYSIS_RECORD,
+    return_value=MOCK_ANALYSIS_RECORD.copy(),
 )
 def test_get_analysis_records(mocked_analyses, mocked_analysis_table):
     analyses_records, exitcode = oa.get_analysis_records(sample_id="ID-123456", server="")
@@ -1201,10 +1201,10 @@ def test_get_analysis_records_multiple_analyses(mocked_analyses):
 
     with patch(
         "onyx_analysis_helper.onyx_analysis_helper_functions.OnyxClient.get_analysis",
-        side_effect=[MOCK_ANALYSIS_TABLE, ANOTHER_MOCK_ANALYSIS_TABLE],
+        side_effect=[MOCK_ANALYSIS_TABLE.copy(), ANOTHER_MOCK_ANALYSIS_TABLE.copy()],
     ):
         many_analyses_records, exitcode = oa.get_analysis_records(sample_id="ID-123456", server="")
-        # print(many_analyses_records)
+        print(many_analyses_records)
         assert len(many_analyses_records) == 2
         assert exitcode == 0
 

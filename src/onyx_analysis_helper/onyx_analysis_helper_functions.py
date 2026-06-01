@@ -306,7 +306,7 @@ class OnyxAnalysis:
 
     def add_package_metadata(self, package_name: str) -> None:
         "Adds package metadata to onyx analysis object"
-        package_metadata = dict(metadata.metadata(package_name))
+        package_metadata = dict(metadata.metadata(package_name))  # ty:ignore[no-matching-overload]
         self.pipeline_name = package_metadata["Name"]
         self.pipeline_version = package_metadata["Version"]
         self.pipeline_url = package_metadata["Project-URL"].split(", ")[
@@ -553,7 +553,7 @@ class OnyxAnalysis:
         return result_file
 
     # Check fields and attributes are valid
-    def check_analysis_object(self, publish_analysis: bool) -> list[str]:
+    def check_analysis_object(self, publish_analysis: bool) -> list[bool | str]:
         """Performs checks on an analysis object to ensure required fields
         are present and that there are no invalid attributes. Runs additional
         check on the outputs being present if analysis is to be published.
