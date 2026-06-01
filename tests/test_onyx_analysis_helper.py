@@ -1195,8 +1195,8 @@ def test_get_analysis_records_multiple_analyses(mocked_analyses):
     ):
         analyses_records, exitcode = oa.get_analysis_records(sample_id="ID-123456", server="")
         # print(analyses_records)
-    assert len(analyses_records) == 2
-    assert exitcode == 0
+        assert len(analyses_records) == 2
+        assert exitcode == 0
 
 
 @patch("onyx_analysis_helper.onyx_analysis_helper_functions.OnyxClient.analyses")
