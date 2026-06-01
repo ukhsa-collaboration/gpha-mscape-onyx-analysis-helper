@@ -94,14 +94,20 @@ methods_versions_fail = onyx_analysis.add_versions_to_methods(
                 {"name": "my_dependency_version", "version": "1.0.0"},
                 {"name": "other_tool", "version": "2.0.0"}
             ],
-            "versions_hash": "<some_long_hash>"
+            "versions_hash": "<some_other_long_hash>"
             }
         }
 
 # If you want to include versions that are stored in Onyx, you must have retrieved the versions when
 # you first queried onyx for the data being analysed. (There is a function in the onyx analysis
-# helper that will do this.) Setting 'include_versions_hash' to True will add a hash of all the
-# versions supplied.
+# helper that will do this.)
+
+# When adding the onyx versions to the method attribue, a hash is created and stored in the methods
+# dict with the key 'onyx_versions_hash'.
+
+# Setting 'include_versions_hash' to True will add an additional hash of all the versions supplied
+# and subsequently stored in 'versions'.
+
 # This method can be used many times or done in one method call, as in this example:
 
 # Query the data using the onyx analysis helper function:
@@ -111,6 +117,7 @@ onyx_record, onyx_versions, exitcode = get_data_and_versions_from_onyx(sample_id
     {"name": "database_from_onyx", "version": "1.0.0"},
     {"name": "tool_version_from_onyx", "version": "1.0.0"}
 ]
+
 methods_versions_fail = onyx_analysis.add_versions_to_methods(
         onyx_versions = onyx_versions,
         # this is optional:
@@ -129,9 +136,13 @@ methods_versions_fail = onyx_analysis.add_versions_to_methods(
                 {"name": "database_from_onyx", "version": "1.0.0"},
                 {"name": "tool_version_from_onyx", "version": "1.0.0"}
             ],
-            "versions_hash": "<some_long_hash>"
+            "onyx_versions_hash": "<some_long_hash>"
+            "versions_hash": "<some_other_long_hash>"
             }
         }
+# NOTE: the onyx_versions_hash ONLY pertains to the onyx versions, in this case:
+# [{"name": "database_from_onyx", "version": "1.0.0"}, {"name": "tool_version_from_onyx", "version": "1.0.0"}]
+
 
 # Add results information e.g. QC results. Must be in dictionary format. More detailed
 # results to be added in output files/report.

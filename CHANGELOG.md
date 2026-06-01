@@ -6,8 +6,8 @@
 - units tests for both of the above, with patches for the onyx queries.
 
 ## Changed:
-- get_data_and_versions_from_onyx function now calculates the hash for the onyx versions retrieved
-in the query and adds these to the dict.
+- Onyx versions hash added when the onyx versions are added to 'onyx_versions_hash' in the methods
+in the analysis table.
 - unit tests updated to account for above.
 
 ---
