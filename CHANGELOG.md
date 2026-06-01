@@ -1,3 +1,18 @@
+#v0.6.0
+
+## Added:
+- get_analysis_records - gets all analysis records associated with a given sample id.
+- trunate_versions function to get major, minor or patch from given version string.
+- units tests for both of the above, with patches for the onyx queries.
+
+
+# v0.5.1 - Hotfix Onyx Query Failures
+
+## Fixed:
+If initial Onyx query fails, the record is returned as None. The wrapper then tries to use
+`record.get()` which does not work on nonetype. The wrapper now checks the exitcode, and if not 0,
+writes a line to the log, returns empty record dict, empty versions list, and exitcode 1.
+
 # v0.5.0 - April 2026
 ## Added:
 - simple function (query_onyx) to query onyx with decorator

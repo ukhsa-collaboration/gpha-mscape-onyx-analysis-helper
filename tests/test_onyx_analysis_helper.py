@@ -8,6 +8,7 @@ WARNING: Using --basetemp on an existing folder will overwrite all files.
 """
 
 import datetime
+import logging
 from pathlib import Path
 from unittest.mock import patch
 
@@ -401,6 +402,27 @@ def test_get_data_and_versions_from_onyx_and_fields(mocked_onyx_get, caplog):
     assert exitcode == 0
     print(caplog.text)
     print(f"Got these versions from Onyx record (mock): {actual_versions_dicts}")
+
+
+def test_onyx_query_fails(caplog):
+    record, exitcode = oa.query_onyx("ID_123456", "SERVER")
+    assert record is None
+    assert exitcode == 1
+    assert "OnyxConnectionError" in caplog.text
+    print(f"\nLog text: \n{caplog.text}")
+
+
+def test_get_data_and_versions_from_onyx_fails_to_query(caplog):
+    record, actual_versions_dicts, exitcode = oa.get_data_and_versions_from_onyx(
+        sample_id="ID-123456", server="SERVER"
+    )
+
+    assert record == {}
+    assert exitcode == 1
+    assert actual_versions_dicts == []
+    assert "OnyxConnectionError" in caplog.text
+    assert "Error: Onyx query failed for sample ID ID-123456 and server SERVER." in caplog.text
+    print(f"\nLog text: \n{caplog.text}")
 
 
 #####################################
@@ -1046,3 +1068,144 @@ def test_add_methods_broken_methods_dict_input(caplog):
     assert "Error: Methods must be in dict format." in caplog.text
     assert methods_fail
     print("Error correctly caught when input type not dict.")
+
+
+@pytest.mark.parametrize(
+    "vers,truncate,expect",
+    [
+        ("1.2.3", "MAJOR", "1"),
+        ("1.2.3", "MINOR", "1.2"),
+        ("1.2.3", "PATCH", "1.2.3"),
+        ("1.2.3-rc.4", "MINOR", "1.2"),
+        ("1.2.3-rc.4", "PATCH", "1.2.3"),
+        ("not a version", "MAJOR", "not a version"),
+    ],
+)
+def test_truncate_version(vers, truncate, expect):
+    actual = oa.truncate_version(vers, truncate)
+    assert actual == expect
+
+
+MOCK_ANALYSIS_RECORD = [
+    {
+        "published_date": "1970-01-01",
+        "site": "test",
+        "analysis_id": "AID-12345678",
+        "analysis_date": "1970-01-01",
+        "name": "test-analysis",
+        "report": "",
+        "outputs": "path/to/outputs/file.json",
+    }
+]
+
+MOCK_ANALYSIS_TABLE = {
+    "name": "test-analysis",
+    "description": "This is a test analysis",
+    "analysis_date": "1970-01-01",
+    "pipeline_name": "test-pipeline",
+    "pipeline_url": "test-pipeline-url",
+    "pipeline_version": "0.1.0",
+    "result": "test result",
+    "upstream_analyses": [],
+    "report": "",
+    "outputs": "path/to/outputs/file.json",
+    "methods": {
+        "versions": [
+            {"name": "a_great_tool", "version": "1.0.0"},
+            {"name": "another_great_tool", "version": "2000.0.0"},
+        ],
+        "thresholds": {"limit": 10},
+        "method2": "method example 2",
+    },
+    "result_metrics": {
+        "Example result 1": 9,
+        "Example result 2": "Fail",
+        "Example result 3": 0.3,
+    },
+    "synthscape_records": ["ID-123456789"],
+    "identifiers": [],
+    "analysis_id": "AID_12345678",
+}
+
+ANOTHER_MOCK_ANALYSIS_RECORD = [
+    {
+        "published_date": "1970-01-02",
+        "site": "test-the-second",
+        "analysis_id": "AID-89012345",
+        "analysis_date": "1970-01-02",
+        "name": "test-analysis",
+        "report": "",
+        "outputs": "path/to/file_2.json",
+    }
+]
+
+ANOTHER_MOCK_ANALYSIS_TABLE = {
+    "name": "test-analysis",
+    "description": "This is another test analysis",
+    "analysis_date": "1970-01-02",
+    "pipeline_name": "test-pipeline",
+    "pipeline_url": "test-pipeline-url",
+    "pipeline_version": "0.1.0",
+    "result": "another test result",
+    "upstream_analyses": [],
+    "report": "",
+    "outputs": "path/to/file_2.json",
+    "methods": {
+        "versions": [
+            {"name": "a_great_tool", "version": "1.0.0"},
+            {"name": "another_great_tool", "version": "2000.0.0"},
+        ],
+        "thresholds": {"limit": 10},
+        "method2": "method example 2",
+    },
+    "result_metrics": {
+        "Example result 1": 9,
+        "Example result 2": "Fail",
+        "Example result 3": 0.3,
+    },
+    "synthscape_records": ["ID-123456789"],
+    "identifiers": [],
+    "analysis_id": "AID-89012345",
+}
+
+
+@patch(
+    target="onyx_analysis_helper.onyx_analysis_helper_functions.OnyxClient.get_analysis",
+    return_value=MOCK_ANALYSIS_TABLE,
+)
+@patch(
+    target="onyx_analysis_helper.onyx_analysis_helper_functions.OnyxClient.analyses",
+    return_value=MOCK_ANALYSIS_RECORD,
+)
+def test_get_analysis_records(mocked_analyses, mocked_analysis_table):
+    analyses_records, exitcode = oa.get_analysis_records(sample_id="ID-123456", server="")
+    assert len(analyses_records) == 1
+    assert exitcode == 0
+
+
+@patch(
+    "onyx_analysis_helper.onyx_analysis_helper_functions.OnyxClient.analyses",
+)
+def test_get_analysis_records_multiple_analyses(mocked_analyses):
+    mocked_analyses.return_value = MOCK_ANALYSIS_RECORD + ANOTHER_MOCK_ANALYSIS_RECORD
+
+    with patch(
+        "onyx_analysis_helper.onyx_analysis_helper_functions.OnyxClient.get_analysis",
+        side_effect=[MOCK_ANALYSIS_TABLE, ANOTHER_MOCK_ANALYSIS_TABLE],
+    ):
+        analyses_records, exitcode = oa.get_analysis_records(sample_id="ID-123456", server="")
+        # print(analyses_records)
+    assert len(analyses_records) == 2
+    assert exitcode == 0
+
+
+@patch("onyx_analysis_helper.onyx_analysis_helper_functions.OnyxClient.analyses")
+def test_get_analysis_records_no_analyses(mocked_analyses, caplog):
+    caplog.set_level(logging.INFO)
+
+    mocked_analyses.return_value = []
+
+    analyses_records, exitcode = oa.get_analysis_records(sample_id="ID-123456", server="")
+    assert "No analysis tables found for sample ID-123456" in caplog.text
+    assert analyses_records == {}
+    assert exitcode == 0
