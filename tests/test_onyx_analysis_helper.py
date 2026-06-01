@@ -725,8 +725,8 @@ def test_add_versions_to_methods_just_onyx(caplog):
 
 def test_add_versions_to_methods_plus_tools(caplog):
     """
-    Test that add_methods functions gets the versions from the query when set to true and adds
-    user defined tool versions and then populates the attribute.
+    Test that add_methods functions gets the versions from the query (plus onyx versions hash)
+    and adds user defined tool versions and then populates the methods attribute correctly.
     """
 
     expected_results = {
@@ -738,7 +738,8 @@ def test_add_versions_to_methods_plus_tools(caplog):
             {"name": "sylph_db_version", "version": "1.0.0"},
             {"name": "alignment_db_version", "version": "1.0.0"},
             {"name": "my_pkg", "version": "v1.2.3"},
-        ]
+        ],
+        "onyx_versions_hash": "e0c8c12a02fa86494059858c41af311d94c086a286bf4c62d53c21261e90f614",
     }
 
     analysis = oa.OnyxAnalysis()
@@ -754,14 +755,15 @@ def test_add_versions_to_methods_plus_tools(caplog):
 
 def test_add_versions_do_not_overwrite(caplog):
     """
-    Test that adding versions doesn't overwrite
+    Test that adding versions doesn't overwrite. Includes onyx versions and hash.
     """
     expected_methods = {
         "versions": [
             {"name": "classifier_version", "version": "1.0.0"},
             {"name": "my_pkg", "version": "v1.2.3"},
             {"name": "my_other_pkg", "version": "v2.3.4"},
-        ]
+        ],
+        "onyx_versions_hash": "b997b78b7ef8c0e21d8d6c0fe242bb9f5e0b98ff6e13240ef4e341d787605481",
     }
     analysis = oa.OnyxAnalysis()
     methods_fail = analysis.add_versions_to_methods(
@@ -777,8 +779,10 @@ def test_add_versions_do_not_overwrite(caplog):
         tool_versions={"my_other_pkg": "v2.3.4"},
     )
     assert not methods_fail_3
-    assert analysis.methods == expected_methods
-    print(analysis.methods)
+    assert analysis.methods == expected_methods, (
+        f"Actual methods attribute does not look as expected: {expected_methods}"
+    )
+    print(f"Expected methods to correct look like: {analysis.methods}")
 
 
 def test_add_versions_to_methods_onyx_versions_not_list(caplog):
@@ -1187,15 +1191,21 @@ def test_get_analysis_records(mocked_analyses, mocked_analysis_table):
     "onyx_analysis_helper.onyx_analysis_helper_functions.OnyxClient.analyses",
 )
 def test_get_analysis_records_multiple_analyses(mocked_analyses):
+    """
+    Get analyses tables from sample with multiple analyses tables. Mock the get_analysis records and
+    the analysis table records.
+
+    Note that this function sometimes fails but running alone seems to pass?
+    """
     mocked_analyses.return_value = MOCK_ANALYSIS_RECORD + ANOTHER_MOCK_ANALYSIS_RECORD
 
     with patch(
         "onyx_analysis_helper.onyx_analysis_helper_functions.OnyxClient.get_analysis",
         side_effect=[MOCK_ANALYSIS_TABLE, ANOTHER_MOCK_ANALYSIS_TABLE],
     ):
-        analyses_records, exitcode = oa.get_analysis_records(sample_id="ID-123456", server="")
+        many_analyses_records, exitcode = oa.get_analysis_records(sample_id="ID-123456", server="")
         # print(analyses_records)
-        assert len(analyses_records) == 2
+        assert len(many_analyses_records) == 2
         assert exitcode == 0
 
 

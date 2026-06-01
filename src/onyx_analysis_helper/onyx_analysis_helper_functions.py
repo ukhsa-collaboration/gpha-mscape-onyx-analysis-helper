@@ -366,6 +366,10 @@ class OnyxAnalysis:
             # Append those onyx versions
             versions_dicts.extend(onyx_versions)
 
+            # Add onyx_versions_hash to the methods:
+            onyx_versions_hash = _calculate_versions_hash(onyx_versions)
+            self.methods["onyx_versions_hash"] = onyx_versions_hash
+
         # Add any additional versions that need to go into the analysis table. Must be dict.
         if tool_versions:
             # if not dict, bail early
