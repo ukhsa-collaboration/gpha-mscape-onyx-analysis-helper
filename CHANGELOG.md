@@ -1,3 +1,11 @@
+#v0.6.0
+
+## Added:
+- get_analysis_records - gets all analysis records associated with a given sample id.
+- trunate_versions function to get major, minor or patch from given version string.
+- units tests for both of the above, with patches for the onyx queries.
+
+
 # v0.5.1 - Hotfix Onyx Query Failures
 
 ## Fixed:
