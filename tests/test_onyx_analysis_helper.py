@@ -1225,7 +1225,7 @@ def test_get_analysis_records_multiple_analyses(mocked_analyses):
         side_effect=[MOCK_ANALYSIS_TABLE, ANOTHER_MOCK_ANALYSIS_TABLE],
     ):
         many_analyses_records, exitcode = oa.get_analysis_records(sample_id="ID-123456", server="")
-        # print(analyses_records)
+        # print(many_analyses_records)
         assert len(many_analyses_records) == 2
         assert exitcode == 0
 
