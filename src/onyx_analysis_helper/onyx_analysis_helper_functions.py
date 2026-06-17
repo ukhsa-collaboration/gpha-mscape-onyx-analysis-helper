@@ -516,6 +516,28 @@ class OnyxAnalysis:
 
         return fields_dict
 
+    def _get_onyx_payload(self, publish: bool):
+        """
+        Return the payload that will be updated in Onyx. The payload contains a dict of the
+        fields that will be updated in Onyx. If the record is to be published, set publish=True.
+
+        NB: The 'is_published' field is a toggle for visibility in onyx.
+
+        arguments:
+            publish (bool): True if the record should be visible in Onyx, False if hidden (used
+            if the record is incomplete).
+
+        Returns:
+            payload (dict): The payload is a python dict that stores values as json strings
+            (Onyx will only accept json strings).
+        """
+        # set the is_published field to true/false as per arg
+        self.is_published = publish
+        # convert any python dicts to json
+        payload: dict = self._get_fields()
+
+        return payload
+
     # Add in function to set s3 output path, other optional fields
     # Create analysis in Onyx
     @call_to_onyx
@@ -526,18 +548,18 @@ class OnyxAnalysis:
         Arguments:
             server -- Server submitting data to
             dryrun -- Specify if test or real upload to onyx
-            publish -- Specify if analysis should be published. Set to true is all fields complete, false if additional fields e.g. outputs needs adding before publication of analysis
+            publish_analysis -- Specify if analysis should be published. Set to true is all fields
+            complete, false if additional fields e.g. outputs needs adding before publication of
+            analysis
         Returns:
             result -- Analysis ID if valid submission, {} if test upload,
                       None if upload fails
             exitcode -- 0 if successful, 1 if fail
         """
-        self.is_published = publish_analysis
-
-        fields_dict: dict[str, str | dict | Path | list | None] = self._get_fields()
+        payload = self._get_onyx_payload(publish_analysis)
 
         with OnyxClient(CONFIG) as client:
-            result = client.create_analysis(project=server, fields=fields_dict, test=dryrun)
+            result = client.create_analysis(project=server, fields=payload, test=dryrun)
         exitcode = 0
 
         return result, exitcode
@@ -697,20 +719,19 @@ class OnyxAnalysis:
             server -- Server submitting data to
             analysis_id -- ID of analysis to be updated
             dryrun -- Specify if test or real upload to onyx
-            publish -- Specify if analysis should be published. Set to true if all
-            fields complete, false if additional fields e.g. outputs needs adding
-            before publication of analysis
+            publish_analysis -- Specify if analysis should be published. Set to
+            true if all fields complete, false if additional fields e.g.
+            outputs needs adding before publication of analysis
         Returns:
             result -- Analysis ID if valid submission, {} if test upload,
-                      None if upload fails
+                      None if upload fails.
             exitcode -- 0 if successful, 1 if fail
         """
-        fields = self._get_fields()
-        self.is_published = publish_analysis
+        payload = self._get_onyx_payload(publish_analysis)
 
         with OnyxClient(CONFIG) as client:
             result = client.update_analysis(
-                project=server, analysis_id=analysis_id, fields=fields, test=dryrun
+                project=server, analysis_id=analysis_id, fields=payload, test=dryrun
             )
 
         exitcode = 0

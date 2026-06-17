@@ -186,3 +186,19 @@ analysis_id, exitcode = onyx_analysis.update_onyx_analysis(server = "synthscape"
 ```
 Note the use of dryrun = True in these examples to do a test upload/update. This option
 should always be used unless code is in production.
+
+__IMPORTANT__
+
+The `publish_analysis` argument here sets the `is_published` field in the analysis record, which is
+a field that Onyx uses as a toggle for visibility of the record in Onyx. In other words, when
+`is_published` is set to false, the record is not visibile in Onyx. This allows initial pushing of
+analysis record to Onyx to allocate the analysis ID, and then allows the record to be changed, added
+to etc. before making it available in Onyx.
+
+It is important to note that any attributes (which correspond to fields in the onyx analysis record)
+set in the onyx_analysis helper when running onyx_analysis.update_onyx_analysis will overwrite any
+fields that might already by in onyx for the given analysis_id.
+
+Note also that the `is_published` attribute is only set by the `update_onyx_analysis` and
+`write_analysis_to_onyx` methods. I the attribute is set any other way before running these methods,
+these methods will overwrite that attribute.

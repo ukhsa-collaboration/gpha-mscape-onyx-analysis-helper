@@ -1219,3 +1219,51 @@ def test_get_analysis_records_no_analyses(mocked_analyses, caplog):
     assert "No analysis tables found for sample ID-123456" in caplog.text
     assert analyses_records == {}
     assert exitcode == 0
+
+
+def test__get_onyx_payload_publish_true():
+    onyx_analysis = oa.OnyxAnalysis()
+    payload = onyx_analysis._get_onyx_payload(publish=True)
+    assert len(payload) == 2
+    assert payload["is_published"]
+
+    # The onyx analysis object is also changed
+    assert len(onyx_analysis.__dict__) == 2
+    assert onyx_analysis.__dict__["is_published"]
+    print(f"\nPayload contains is_published field: {payload}")
+
+
+def test__get_onyx_payload_publish_false():
+    onyx_analysis = oa.OnyxAnalysis()
+    payload = onyx_analysis._get_onyx_payload(publish=False)
+    assert len(payload) == 2
+    assert not payload["is_published"]
+
+    # The onyx analysis object is also changed
+    assert len(onyx_analysis.__dict__) == 2
+    assert not onyx_analysis.__dict__["is_published"]
+    print(f"\nPayload contains is_published field: {payload}")
+
+
+def test__get_onyx_payload_json():
+    """Check that the dicts are converted to json in payload."""
+    onyx_analysis = oa.OnyxAnalysis()
+    # Add 6 fields to the oject
+    onyx_analysis.name = "test"
+    onyx_analysis.description = "This is a test analysis"
+    onyx_analysis.pipeline_name = "test-pipeline"
+    onyx_analysis.pipeline_url = "test-pipeline-url"
+    onyx_analysis.pipeline_version = "0.1.0"
+    onyx_analysis.methods = {"command": "I did this"}
+
+    assert isinstance(onyx_analysis.methods, dict)
+
+    payload = onyx_analysis._get_onyx_payload(publish=False)
+    assert len(payload) == 8  # adds identifiers and is_published
+    assert not payload["is_published"]
+
+    # onyx analysis object should still be dict
+    assert isinstance(onyx_analysis.methods, dict)
+    # payload should be string (json)
+    assert isinstance(payload["methods"], str)
+    print(f"\nPayload contains json methods: {payload}")

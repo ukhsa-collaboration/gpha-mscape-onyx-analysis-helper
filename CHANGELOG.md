@@ -1,3 +1,19 @@
+# v0.6.1 - Patch publish to onyx
+Problem: the update_onyx_analysis function would take the fields of the onyx analysis object, then
+set the 'is_published' attribute on the object, but fields (without that attribute) was given to
+onyx to publish.
+
+## Fix:
+- create _get_onyx_payload function on the object which takes 'publish' boolean as arg, and returns
+a payload contains the fields to be updated in onyx, with any dicts converted json.
+
+## Added:
+- unittests for _get_onyx_payload.
+- explanation in readme.
+
+---
+---
+
 # v0.6.0 - Query for analysis tables.
 
 ## Added:
