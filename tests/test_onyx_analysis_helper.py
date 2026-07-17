@@ -69,7 +69,7 @@ def complete_field_dict():
         "analysis_date": "2025-08-21",
         "pipeline_name": "test-pipeline",
         "pipeline_url": "test-pipeline-url",
-        "pipeline_version": "0.1.0",
+        "pipeline_version": "v0.1.0",
         "result": "test result",
         "upstream_analyses": [],
         "report": "",
@@ -103,7 +103,7 @@ def complete_field_dict_json():
         "analysis_date": "2025-08-21",
         "pipeline_name": "test-pipeline",
         "pipeline_url": "test-pipeline-url",
-        "pipeline_version": "0.1.0",
+        "pipeline_version": "v0.1.0",
         "result": "test result",
         "upstream_analyses": [],
         "report": "",
@@ -129,7 +129,7 @@ def missing_field_dict():
         "analysis_date": "2025-08-21",
         "pipeline_name": "test-pipeline",
         "pipeline_url": "test-pipeline-url",
-        "pipeline_version": "0.1.0",
+        "pipeline_version": "v0.1.0",
         "result": "test result",
         "upstream_analyses": [],
         "report": "",
@@ -164,7 +164,7 @@ def missing_output_dict():
         "analysis_date": "2025-08-21",
         "pipeline_name": "test-pipeline",
         "pipeline_url": "test-pipeline-url",
-        "pipeline_version": "0.1.0",
+        "pipeline_version": "v0.1.0",
         "result": "test result",
         "upstream_analyses": [],
         "methods": {
@@ -200,7 +200,7 @@ def missing_both_dict():
         "analysis_date": "2025-08-21",
         "pipeline_name": "test-pipeline",
         "pipeline_url": "test-pipeline-url",
-        "pipeline_version": "0.1.0",
+        "pipeline_version": "v0.1.0",
         "result": "test result",
         "upstream_analyses": [],
         "methods": {
@@ -252,7 +252,7 @@ def invalid_field_dict():
         "analysis_date": "2025-08-21",
         "pipeline_name": "test-pipeline",
         "pipeline_url": "test-pipeline-url",
-        "pipeline_version": "0.1.0",
+        "pipeline_version": "v0.1.0",
         "result": "test result",
         "upstream_analyses": [],
         "report": "",
@@ -502,8 +502,9 @@ def test__get_fields_other_field_is_dict():
 
 def test_add_package_metadata():
     analysis = oa.OnyxAnalysis()
+
     analysis.add_package_metadata("climb-onyx-client")
-    version_check = re.fullmatch("[0-9]+\\.[0-9]+\\.[0-9]+", analysis.pipeline_version)
+    version_check = re.fullmatch("v[0-9]+\\.[0-9]+\\.[0-9]+", analysis.pipeline_version)
 
     assert analysis.pipeline_name == "climb-onyx-client"
     assert version_check is not None
@@ -1108,7 +1109,7 @@ MOCK_ANALYSIS_TABLE = {
     "analysis_date": "1970-01-01",
     "pipeline_name": "test-pipeline",
     "pipeline_url": "test-pipeline-url",
-    "pipeline_version": "0.1.0",
+    "pipeline_version": "v0.1.0",
     "result": "test result",
     "upstream_analyses": [],
     "report": "",
@@ -1149,7 +1150,7 @@ ANOTHER_MOCK_ANALYSIS_TABLE = {
     "analysis_date": "1970-01-02",
     "pipeline_name": "test-pipeline",
     "pipeline_url": "test-pipeline-url",
-    "pipeline_version": "0.1.0",
+    "pipeline_version": "v0.2.0",
     "result": "another test result",
     "upstream_analyses": [],
     "report": "",
@@ -1253,7 +1254,7 @@ def test__get_onyx_payload_json():
     onyx_analysis.description = "This is a test analysis"
     onyx_analysis.pipeline_name = "test-pipeline"
     onyx_analysis.pipeline_url = "test-pipeline-url"
-    onyx_analysis.pipeline_version = "0.1.0"
+    onyx_analysis.pipeline_version = "v0.1.0"
     onyx_analysis.methods = {"command": "I did this"}
 
     assert isinstance(onyx_analysis.methods, dict)
