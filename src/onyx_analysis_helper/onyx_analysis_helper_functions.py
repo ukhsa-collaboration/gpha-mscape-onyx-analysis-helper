@@ -308,7 +308,11 @@ class OnyxAnalysis:
         "Adds package metadata to onyx analysis object"
         package_metadata = dict(metadata.metadata(package_name))  # ty:ignore[no-matching-overload]
         self.pipeline_name = package_metadata["Name"]
-        self.pipeline_version = package_metadata["Version"]
+        self.pipeline_version = (
+            package_metadata["Version"]
+            if package_metadata["Version"].startswith("v")
+            else "v" + package_metadata["Version"]
+        )
         self.pipeline_url = package_metadata["Project-URL"].split(", ")[
             1
         ]  # Get url from toml - add to template
