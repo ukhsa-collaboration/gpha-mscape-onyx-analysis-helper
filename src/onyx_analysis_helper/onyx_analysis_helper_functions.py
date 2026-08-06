@@ -289,7 +289,7 @@ class OnyxAnalysis:
         self.pipeline_command: str | None
         self.methods: dict
         self.result: str
-        self.result_metrics: dict
+        self.result_metrics: dict = {}
         self.report: Path | None
         self.outputs: Path | None
         self.upstream_analyses: str | None
