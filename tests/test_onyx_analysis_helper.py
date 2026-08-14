@@ -412,6 +412,13 @@ def test_onyx_query_fails(caplog):
     print(f"\nLog text: \n{caplog.text}")
 
 
+def test_onyx_query_fails_not_silenced(caplog):
+    with pytest.raises(oa.OnyxConnectionError):
+        record, exitcode = oa.query_onyx("ID_123456", "SERVER", silence=False)
+        assert "OnyxConnectionError" in caplog.text
+        print(f"\nLog text: \n{caplog.text}")
+
+
 def test_get_data_and_versions_from_onyx_fails_to_query(caplog):
     record, actual_versions_dicts, exitcode = oa.get_data_and_versions_from_onyx(
         sample_id="ID-123456", server="SERVER"
@@ -423,6 +430,52 @@ def test_get_data_and_versions_from_onyx_fails_to_query(caplog):
     assert "OnyxConnectionError" in caplog.text
     assert "Error: Onyx query failed for sample ID ID-123456 and server SERVER." in caplog.text
     print(f"\nLog text: \n{caplog.text}")
+
+
+def test_get_data_and_versions_from_onyx_fails_to_query_not_silent(caplog):
+    with pytest.raises(oa.OnyxConnectionError):
+        record, actual_versions_dicts, exitcode = oa.get_data_and_versions_from_onyx(
+            sample_id="ID-123456", server="SERVER", silence=False
+        )
+        assert "OnyxConnectionError" in caplog.text
+        assert "Error: Onyx query failed for sample ID ID-123456 and server SERVER." in caplog.text
+        print(f"\nLog text: \n{caplog.text}")
+
+
+###################
+# Test Decorator: #
+
+
+def test_decorator_on_func_without_silence(caplog):
+    # Create a test function and wrap it. Expect this to fail because there is no connection, but should fail silently.
+    @oa.call_to_onyx
+    def my_query_to_onyx():
+        exitcode = 0
+
+        with oa.OnyxClient(oa.CONFIG) as client:
+            record: dict = client.get(project="pretend_server", climb_id="pretend_id")
+        return record, exitcode
+
+    r, e = my_query_to_onyx()
+    assert e == 1
+    assert not r
+    print(caplog.text)
+
+
+def test_decorator_on_func_with_silence_arg(caplog):
+    # Create a test function that is never silent and wrap it.
+    # Expect this to fail because there is no connection and should raise exception.
+    @oa.call_to_onyx
+    def my_query_to_onyx(silence=False):
+        exitcode = 0
+
+        with oa.OnyxClient(oa.CONFIG) as client:
+            record: dict = client.get(project="pretend_server", climb_id="pretend_id")
+        return record, exitcode
+
+    with pytest.raises(oa.OnyxConnectionError):
+        r, e = my_query_to_onyx()
+        print(caplog.text)
 
 
 #####################################
