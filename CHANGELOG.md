@@ -1,3 +1,17 @@
+# v0.6.3 - Patch silence toggle for onyx queries
+Problem: Onyx queries exceptions should not always be silenced, allow users to allow exceptions to
+be raised with toggle arg in wrapped functions. Implement this in the onyx query functions.
+
+## Add:
+- decorator parses the args from the func and if silence is present (either by default or specified
+on function call) then use that, else default to True. If True, do not raise exceptions.
+
+_Not a Breaking change_
+
+---
+---
+
+
 # v0.6.1 - Patch publish to onyx
 Problem: the update_onyx_analysis function would take the fields of the onyx analysis object, then
 set the 'is_published' attribute on the object, but fields (without that attribute) was given to
