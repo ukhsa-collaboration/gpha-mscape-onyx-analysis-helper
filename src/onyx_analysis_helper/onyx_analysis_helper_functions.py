@@ -6,12 +6,14 @@ to support submission and reading of onyx analyses.
 import datetime
 import hashlib
 import importlib.metadata as metadata
+import inspect
 import json
 import logging
 import os
 import time
 from functools import wraps
 from pathlib import Path
+from typing import Any
 
 from onyx import OnyxClient, OnyxConfig, OnyxEnv
 from onyx.exceptions import OnyxClientError, OnyxConfigError, OnyxConnectionError, OnyxHTTPError
@@ -26,12 +28,26 @@ CONFIG = OnyxConfig(
 
 # Onyx query decorator
 def call_to_onyx(func):
-    """Decorator that provides error handling and submission attempt
-    functionality for any calls to Onyx.
     """
+    Decorator that provides error handling and submission attempt
+    functionality for any calls to Onyx.
+
+    Exceptions are silenced by default.
+    If wrapped function has argument silence=False, exceptions will be raised.
+    """
+    # Get the wrapped functions arguments so can detect default args
+    func_signature: inspect.Signature = inspect.signature(func)
 
     @wraps(func)
-    def call_to_onyx_wrapper(*args, **kwargs):
+    def call_to_onyx_wrapper(*args, **kwargs) -> tuple[Any, int] | None:
+        # Check args to see if should silence exceptions.
+        # Add the args that are supplied by the function on use
+        supplied_args = func_signature.bind_partial(*args, **kwargs)
+        # Add in the default wrapped func's args:
+        supplied_args.apply_defaults()
+        # Now check if silence arg is given, if not make default True:
+        silence: bool = supplied_args.arguments.get("silence", True)
+
         connection_attempts = 1
         success = False
 
@@ -59,6 +75,8 @@ def call_to_onyx(func):
                         exc,
                         connection_attempts,
                     )
+                    if not silence:
+                        raise
                     result = None
                     exitcode = 1
                     return result, exitcode
@@ -71,6 +89,8 @@ def call_to_onyx(func):
                           for more details.""",
                     exc,
                 )
+                if not silence:
+                    raise
                 result = None
                 exitcode = 1
                 return result, exitcode
@@ -83,6 +103,8 @@ def call_to_onyx(func):
                           for more details""",
                     exc,
                 )
+                if not silence:
+                    raise
                 result = None
                 exitcode = 1
                 return result, exitcode
@@ -94,6 +116,8 @@ def call_to_onyx(func):
                           for more details""",
                     exc.response.json(),
                 )
+                if not silence:
+                    raise
                 result = None
                 exitcode = 1
                 return result, exitcode
@@ -105,6 +129,8 @@ def call_to_onyx(func):
                           for more details""",
                     exc,
                 )
+                if not silence:
+                    raise
                 result = None
                 exitcode = 1
                 return result, exitcode
@@ -130,10 +156,7 @@ def _calculate_versions_hash(versions: list[dict[str, str | None]]) -> str:
 
 
 @call_to_onyx
-def query_onyx(
-    sample_id: str,
-    server: str,
-) -> tuple[dict, int]:
+def query_onyx(sample_id: str, server: str, silence: bool = True) -> tuple[dict, int]:
     """
     Query to onyx using OnyxClient.get for single sample and specified server.
 
@@ -143,6 +166,7 @@ def query_onyx(
     Arguments:
             sample_id -- valid climb id.
             server -- name of server to query.
+            silence -- bool, whether or not to silence exceptions, default is True.
 
         Returns:
             record -- dict, the entire Onyx record, or just the fields requested in 'fields'
@@ -161,7 +185,7 @@ def query_onyx(
 
 
 def get_data_and_versions_from_onyx(
-    sample_id: str, server: str, fields: list | None = None
+    sample_id: str, server: str, fields: list | None = None, silence: bool = True
 ) -> tuple[dict, list[dict], int]:
     """
     Query to onyx for specific climb id and server, then handle versions from Onyx and return
@@ -173,6 +197,7 @@ def get_data_and_versions_from_onyx(
         sample_id -- valid climb id.
         server -- name of server to query.
         fields -- optional, list of valid onyx fields to return in the record.
+        silence -- optional, bool of whether or not to silence exceptions. Default is True.
     Returns:
         record -- dict, the entire Onyx record, or just the fields requested in 'fields'
             argument.
@@ -183,7 +208,7 @@ def get_data_and_versions_from_onyx(
     """
     exitcode = 0
     record: dict
-    record, exitcode = query_onyx(sample_id=sample_id, server=server)
+    record, exitcode = query_onyx(sample_id=sample_id, server=server, silence=silence)
 
     versions_dicts: list[dict[str, str | None]] = []
 
@@ -222,7 +247,12 @@ def get_data_and_versions_from_onyx(
 
 # Query analysis tables
 @call_to_onyx
-def get_analysis_records(sample_id: str, server: str, fields: list = []) -> tuple[dict, int]:  # noqa: B006
+def get_analysis_records(
+    sample_id: str,
+    server: str,
+    fields: list = [],  # noqa: B006
+    silence: bool = True,
+) -> tuple[dict, int]:
     """
     Query onyx to get all analysis tables associated with a given sample ID on a given server.
 
@@ -230,6 +260,7 @@ def get_analysis_records(sample_id: str, server: str, fields: list = []) -> tupl
         sample_id -- valid climb id.
         server -- name of server to query.
         fields -- optional, list of valid onyx fields to return in the record.
+        silence -- optional, bool of whether or not to silence exceptions. Default is True.
     Returns:
         analysis_recs -- a dictionary where key is the analysis ID, and value is the record.
         exitcode -- 1 if fail 0 if pass
