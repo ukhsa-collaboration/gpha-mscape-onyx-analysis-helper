@@ -25,7 +25,7 @@ CONFIG = OnyxConfig(
     token=os.environ[OnyxEnv.TOKEN],
 )
 
-logger = logging.getLogger("onyx_analysis_helper")
+logger = logging.getLogger(__name__)
 
 
 # Onyx query decorator

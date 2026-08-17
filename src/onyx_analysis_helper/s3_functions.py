@@ -16,7 +16,7 @@ import regex as re
 from botocore.config import Config
 from botocore.exceptions import ClientError
 
-logger = logging.getLogger("onyx_analysis_helper")
+logger = logging.getLogger(__name__)
 
 
 def call_to_s3(func):
