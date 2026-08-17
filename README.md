@@ -39,6 +39,50 @@ dependencies = ["climb-onyx-client", "onyx-analysis-helper@git+https://github.co
 ```
 
 ## Usage
+- [I want to use the decorator for my Onyx query](###Onyx-Query-Decorator)
+- [I want to create analysis tables](###Create-analysis-tables)
+
+
+## Onyx Query Decorator
+To use the onyx query decorator, first import the library (possibly just the wrapper):
+```python
+from onyx_analysis_helper.onyx_analysis_helper_functions import call_to_onyx
+```
+
+Then wrap your function using the decorator notation:
+```python
+@call_to_onyx
+def this_is_my_query_function(id, server):
+    record = onyx_client.get(id=id, server=server)
+    return record, exitcode
+```
+
+Note that the decorator returns two things - the record/data that the client method returns, and an exitcode, which is an integer where 0 is success and 1 is fail. __Your function must return both.__
+
+The decorator will:
+- automatically run 3 retries if connection cannot be established, with 5 second pauses between tries.
+- write neat logging messages to the logger with name 'onyx_analysis_helper'.
+- silence exceptions by default, and return the record or response and an exitcode.
+
+__If the decorator should not silence exceptions and raise them:__
+
+Your function can take silence as a keyword argument. The decorator by default sets this to True,
+but an argument can overwrite this. For example:
+
+```python
+@call_to_onyx
+def this_is_my_query_function(id, server, silence=False):
+    record = onyx_client.get(id=id, server=server)
+    return record, exitcode
+```
+When the function is called like so:
+```
+this_is_my_query_function("id=123", "myserver")
+```
+then any exceptions will be raised by the wrapper.
+
+
+## Create analysis tables
 
 Functionality from the repo can be imported into other code after
 installation:
