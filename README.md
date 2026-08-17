@@ -39,11 +39,21 @@ dependencies = ["climb-onyx-client", "onyx-analysis-helper@git+https://github.co
 ```
 
 ## Usage
-- [I want to use the decorator for my Onyx query](###Onyx-Query-Decorator)
-- [I want to create analysis tables](###Create-analysis-tables)
+- [I want to use the decorator for my Onyx query](##Onyx-Query-Decorator)
+- [I want to use a default query function](##Query-onyx-using-provided-function)
+- [I want to create analysis tables](##Create-analysis-tables)
 
 
 ## Onyx Query Decorator
+The onyx query decorator is a simple function decorator that can be added to functions that query onyx.
+
+The decorator will:
+- automatically run 3 retries if connection cannot be established, with 5 second pauses between tries.
+- write neat logging messages to the logger with name 'onyx_analysis_helper'.
+- silence exceptions by default, and return the record or response and an exitcode.
+
+### Use
+
 To use the onyx query decorator, first import the library (possibly just the wrapper):
 ```python
 from onyx_analysis_helper.onyx_analysis_helper_functions import call_to_onyx
@@ -59,19 +69,17 @@ def this_is_my_query_function(id, server):
 
 Note that the decorator returns two things - the record/data that the client method returns, and an exitcode, which is an integer where 0 is success and 1 is fail. __Your function must return both.__
 
-The decorator will:
-- automatically run 3 retries if connection cannot be established, with 5 second pauses between tries.
-- write neat logging messages to the logger with name 'onyx_analysis_helper'.
-- silence exceptions by default, and return the record or response and an exitcode.
+### I don't want to silence exceptions...
 
-__If the decorator should not silence exceptions and raise them:__
+Your function can take `silence` as a keyword argument. The decorator by default sets this to True,
+but an argument can overwrite this. Then any exceptions will be raised. An exitcode code will still be returned if no exceptions are raised.
 
-Your function can take silence as a keyword argument. The decorator by default sets this to True,
-but an argument can overwrite this. For example:
+For example:
 
 ```python
 @call_to_onyx
 def this_is_my_query_function(id, server, silence=False):
+    exitcode = 0
     record = onyx_client.get(id=id, server=server)
     return record, exitcode
 ```
@@ -81,6 +89,25 @@ this_is_my_query_function("id=123", "myserver")
 ```
 then any exceptions will be raised by the wrapper.
 
+## Query onyx using provided function
+There are some onyx query functions already written in the onyx analysis helper functions. These already use the decorator as above.
+
+To use these, import onyx analysis helper functions from the library, then use the function as below.
+
+
+```python
+from onyx_analysis_helper.onyx_analysis_helper.functions import (
+    query_onyx,
+    get_data_and_versions_from_onyx,
+    get_analysis_records
+)
+```
+
+| function   | arguments                          | what it does |
+|------------|------------------------------------|--------------|
+| query_onyx | sample_id: str, server: str, silence: bool = True | Query onyx using OnyxClient.get for single sample and specified server. |
+| get_data_and_versions_from_onyx | sample_id: str, server: str, fields: list or None, silence: bool = True | Query onyx for specific climb id and server, then handle versions from Onyx and return just fields of interest if supplied.  |
+| get_analysis_records | sample_id: str, server: str, fields: list, silence: bool = True | Query onyx to get all analysis tables associated with a given sample ID on a given server. |
 
 ## Create analysis tables
 
