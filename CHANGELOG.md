@@ -5,6 +5,10 @@ be raised with toggle arg in wrapped functions. Implement this in the onyx query
 ## Add:
 - decorator parses the args from the func and if silence is present (either by default or specified
 on function call) then use that, else default to True. If True, do not raise exceptions.
+- explanation about the decorator added to the readme.
+
+## Change:
+- instead of `logging.debug`, logger instance is created with __name__ as the logger name, and `logger.debug` is used.
 
 _Not a Breaking change_
 
