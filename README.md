@@ -64,6 +64,7 @@ Then wrap your function using the decorator notation:
 @call_to_onyx
 def this_is_my_query_function(id, server):
     record = onyx_client.get(id=id, server=server)
+    exitcode = 0
     return record, exitcode
 ```
 
