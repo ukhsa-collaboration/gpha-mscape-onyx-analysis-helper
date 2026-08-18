@@ -21,7 +21,7 @@ Installation for users:
 
 Installation for developers (installs code in editable mode):
 
-`cd mscape-template`
+`cd onyx-analysis-helper`
 
 `pip install --editable '.[dev]'`
 
