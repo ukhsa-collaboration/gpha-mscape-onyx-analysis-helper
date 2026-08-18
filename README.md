@@ -54,7 +54,8 @@ The decorator will:
 
 ### Use
 
-To use the onyx query decorator, first import the library (possibly just the wrapper):
+To use the onyx query decorator, first import the decorator:
+
 ```python
 from onyx_analysis_helper.onyx_analysis_helper_functions import call_to_onyx
 ```
