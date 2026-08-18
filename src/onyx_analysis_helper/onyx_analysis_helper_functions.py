@@ -6,12 +6,14 @@ to support submission and reading of onyx analyses.
 import datetime
 import hashlib
 import importlib.metadata as metadata
+import inspect
 import json
 import logging
 import os
 import time
 from functools import wraps
 from pathlib import Path
+from typing import Any
 
 from onyx import OnyxClient, OnyxConfig, OnyxEnv
 from onyx.exceptions import OnyxClientError, OnyxConfigError, OnyxConnectionError, OnyxHTTPError
@@ -23,88 +25,114 @@ CONFIG = OnyxConfig(
     token=os.environ[OnyxEnv.TOKEN],
 )
 
+logger = logging.getLogger(__name__)
+
 
 # Onyx query decorator
 def call_to_onyx(func):
-    """Decorator that provides error handling and submission attempt
-    functionality for any calls to Onyx.
     """
+    Decorator that provides error handling and submission attempt
+    functionality for any calls to Onyx.
+
+    Exceptions are silenced by default.
+    If wrapped function has argument silence=False, exceptions will be raised.
+    """
+    # Get the wrapped functions arguments so can detect default args
+    func_signature: inspect.Signature = inspect.signature(func)
 
     @wraps(func)
-    def call_to_onyx_wrapper(*args, **kwargs):
+    def call_to_onyx_wrapper(*args, **kwargs) -> tuple[Any, int] | None:
+        # Check args to see if should silence exceptions.
+        # Add the args that are supplied by the function on use
+        supplied_args = func_signature.bind_partial(*args, **kwargs)
+        # Add in the default wrapped func's args:
+        supplied_args.apply_defaults()
+        # Now check if silence arg is given, if not make default True:
+        silence: bool = supplied_args.arguments.get("silence", True)
+
         connection_attempts = 1
         success = False
 
         while success is False:
             try:
-                logging.debug(
+                logger.debug(
                     "Attempting connection to Onyx. Attempt number %s", connection_attempts
                 )
                 result, exitcode = func(*args, **kwargs)
                 success = True
-                logging.debug("Successful connection to onyx")
+                logger.debug("Successful connection to onyx")
 
                 return result, exitcode
 
             except OnyxConnectionError as exc:
                 if connection_attempts < 3:
                     connection_attempts += 1
-                    logging.debug("OnyxConnectionError: %s. Retrying connection in 5 seconds", exc)
+                    logger.debug("OnyxConnectionError: %s. Retrying connection in 5 seconds", exc)
                     time.sleep(5)
 
                 else:
-                    logging.error(
+                    logger.error(
                         """OnyxConnectionError: %s. Connection to Onyx failed %s times,
                               exiting program""",
                         exc,
                         connection_attempts,
                     )
+                    if not silence:
+                        raise
                     result = None
                     exitcode = 1
                     return result, exitcode
 
             except OnyxConfigError as exc:
-                logging.error(
+                logger.error(
                     """OnyxConfigError: %s. Check credentials and details in OnyxConfig
-                          are correct. See
-                          https://climb-tre.github.io/onyx-client/api/documentation/exceptions/
-                          for more details.""",
+                        are correct. See
+                        https://climb-tre.github.io/onyx-client/api/documentation/exceptions/
+                        for more details.""",
                     exc,
                 )
+                if not silence:
+                    raise
                 result = None
                 exitcode = 1
                 return result, exitcode
 
             except OnyxClientError as exc:
-                logging.error(
+                logger.error(
                     """OnyxClientError: %s. Check calls to OnyxClient are correct
-                          and required arguments e.g. climb_id are present. See
-                          https://climb-tre.github.io/onyx-client/api/documentation/exceptions/
-                          for more details""",
+                        and required arguments e.g. climb_id are present. See
+                        https://climb-tre.github.io/onyx-client/api/documentation/exceptions/
+                        for more details""",
                     exc,
                 )
+                if not silence:
+                    raise
                 result = None
                 exitcode = 1
                 return result, exitcode
 
             except OnyxHTTPError as exc:
-                logging.error(
+                logger.error(
                     """OnyxHTTPError: %s. See
-                          https://climb-tre.github.io/onyx-client/api/documentation/exceptions/
-                          for more details""",
+                        https://climb-tre.github.io/onyx-client/api/documentation/exceptions/
+                        for more details""",
                     exc.response.json(),
                 )
+                if not silence:
+                    raise
                 result = None
                 exitcode = 1
                 return result, exitcode
 
             except Exception as exc:
-                logging.error(
+                logger.error(
                     """Unhandled error: %s. See
-                          https://climb-tre.github.io/onyx-client/api/documentation/exceptions/
-                          for more details""",
+                        https://climb-tre.github.io/onyx-client/api/documentation/exceptions/
+                        for more details""",
                     exc,
                 )
+                if not silence:
+                    raise
                 result = None
                 exitcode = 1
                 return result, exitcode
@@ -130,10 +158,7 @@ def _calculate_versions_hash(versions: list[dict[str, str | None]]) -> str:
 
 
 @call_to_onyx
-def query_onyx(
-    sample_id: str,
-    server: str,
-) -> tuple[dict, int]:
+def query_onyx(sample_id: str, server: str, silence: bool = True) -> tuple[dict, int]:
     """
     Query to onyx using OnyxClient.get for single sample and specified server.
 
@@ -143,6 +168,7 @@ def query_onyx(
     Arguments:
             sample_id -- valid climb id.
             server -- name of server to query.
+            silence -- bool, whether or not to silence exceptions, default is True.
 
         Returns:
             record -- dict, the entire Onyx record, or just the fields requested in 'fields'
@@ -161,7 +187,7 @@ def query_onyx(
 
 
 def get_data_and_versions_from_onyx(
-    sample_id: str, server: str, fields: list | None = None
+    sample_id: str, server: str, fields: list | None = None, silence: bool = True
 ) -> tuple[dict, list[dict], int]:
     """
     Query to onyx for specific climb id and server, then handle versions from Onyx and return
@@ -173,6 +199,7 @@ def get_data_and_versions_from_onyx(
         sample_id -- valid climb id.
         server -- name of server to query.
         fields -- optional, list of valid onyx fields to return in the record.
+        silence -- optional, bool of whether or not to silence exceptions. Default is True.
     Returns:
         record -- dict, the entire Onyx record, or just the fields requested in 'fields'
             argument.
@@ -183,12 +210,12 @@ def get_data_and_versions_from_onyx(
     """
     exitcode = 0
     record: dict
-    record, exitcode = query_onyx(sample_id=sample_id, server=server)
+    record, exitcode = query_onyx(sample_id=sample_id, server=server, silence=silence)
 
     versions_dicts: list[dict[str, str | None]] = []
 
     if exitcode != 0:
-        logging.error(
+        logger.error(
             "Error: Onyx query failed for sample ID %s and server %s." % (sample_id, server)  # noqa: UP031
         )
         # if onyx call did not work, return an empty record, empty versions and exitcode 1.
@@ -222,7 +249,12 @@ def get_data_and_versions_from_onyx(
 
 # Query analysis tables
 @call_to_onyx
-def get_analysis_records(sample_id: str, server: str, fields: list = []) -> tuple[dict, int]:  # noqa: B006
+def get_analysis_records(
+    sample_id: str,
+    server: str,
+    fields: list = [],  # noqa: B006
+    silence: bool = True,
+) -> tuple[dict, int]:
     """
     Query onyx to get all analysis tables associated with a given sample ID on a given server.
 
@@ -230,6 +262,7 @@ def get_analysis_records(sample_id: str, server: str, fields: list = []) -> tupl
         sample_id -- valid climb id.
         server -- name of server to query.
         fields -- optional, list of valid onyx fields to return in the record.
+        silence -- optional, bool of whether or not to silence exceptions. Default is True.
     Returns:
         analysis_recs -- a dictionary where key is the analysis ID, and value is the record.
         exitcode -- 1 if fail 0 if pass
@@ -246,7 +279,7 @@ def get_analysis_records(sample_id: str, server: str, fields: list = []) -> tupl
         analysis_ids = [analysis["analysis_id"] for analysis in analyses]
 
         if not analysis_ids:
-            logging.info("No analysis tables found for sample %s on server %s.", sample_id, server)
+            logger.info("No analysis tables found for sample %s on server %s.", sample_id, server)
             return {}, exitcode
 
         for aid in analysis_ids:
@@ -350,7 +383,7 @@ class OnyxAnalysis:
 
         # There is a chance this function does nothing, so bail early:
         if not onyx_versions and not tool_versions:
-            logging.warning("Warning: No suitable arguments provided, this method does nothing.")
+            logger.warning("Warning: No suitable arguments provided, this method does nothing.")
             return methods_fail
 
         versions_dicts: list = []
@@ -359,7 +392,7 @@ class OnyxAnalysis:
         if onyx_versions:
             # If not list, bail early
             if not isinstance(onyx_versions, list):
-                logging.error(
+                logger.error(
                     "Error: Onyx versions must be given as list in format: "
                     "[{'name': 'tool', 'version': '1.0.0'}]. Use outputs from "
                     "get_data_and_versions_from_onyx."
@@ -378,7 +411,7 @@ class OnyxAnalysis:
         if tool_versions:
             # if not dict, bail early
             if not isinstance(tool_versions, dict):
-                logging.error("Error: tool_versions must be in dict format: e.g. {'tool': '1.0.0'}")
+                logger.error("Error: tool_versions must be in dict format: e.g. {'tool': '1.0.0'}")
                 methods_fail = True
                 return methods_fail
             # Reformat the versions and add to the dict.
@@ -406,19 +439,19 @@ class OnyxAnalysis:
         current methods["versions"] list.
 
         Returns:
-            methods_fail: true if fail, check logging message.
+            methods_fail: true if fail, check logger message.
         """
         methods_fail = False
 
         if "versions" not in self.methods:
-            logging.error(
+            logger.error(
                 "Error: versions must be present in methods before calculating versions_hash"
             )
             methods_fail = True
             return methods_fail
 
         if not isinstance(self.methods["versions"], list):
-            logging.error("Error: versions must be a list before calculating versions_hash")
+            logger.error("Error: versions must be a list before calculating versions_hash")
             methods_fail = True
             return methods_fail
 
@@ -439,12 +472,12 @@ class OnyxAnalysis:
                 or a combination of both.
 
         Returns:
-            methods_fail: true if fail, check logging message.
+            methods_fail: true if fail, check logger message.
         """
         methods_fail = False
 
         if not isinstance(methods_dict, dict):
-            logging.error("Error: Methods must be in dict format.")
+            logger.error("Error: Methods must be in dict format.")
             methods_fail = True
             return methods_fail
 
@@ -454,7 +487,7 @@ class OnyxAnalysis:
 
         for method_name, method_params in methods_dict.items():
             if method_name == "version" or method_name == "versions":
-                logging.error(
+                logger.error(
                     (  # noqa: UP031
                         "Error: Cannot add '%s' to the methods field with add_methods. "
                         "Use add_versions_to_methods to add versions."
@@ -475,7 +508,7 @@ class OnyxAnalysis:
             self.result_metrics: dict = results_dict
             results_fail = False
         else:
-            logging.error("Error: result_metrics must be in dict format")
+            logger.error("Error: result_metrics must be in dict format")
             results_fail = True
 
         return results_fail
@@ -557,7 +590,7 @@ class OnyxAnalysis:
             analysis
         Returns:
             result -- Analysis ID if valid submission, {} if test upload,
-                      None if upload fails
+                    None if upload fails
             exitcode -- 0 if successful, 1 if fail
         """
         payload = self._get_onyx_payload(publish_analysis)
@@ -616,7 +649,7 @@ class OnyxAnalysis:
         ]
         if not all(field in fields_dict for field in required_fields):
             missing_fields = [field for field in required_fields if field not in fields_dict]
-            logging.error("Missing required fields: %s", missing_fields)
+            logger.error("Missing required fields: %s", missing_fields)
             missing_field = True
 
         return missing_field
@@ -628,7 +661,7 @@ class OnyxAnalysis:
         output_fields = ["report", "outputs"]
 
         if not any(field in output_fields for field in fields_dict):
-            logging.error("Fields dict must contain one of: %s", output_fields)
+            logger.error("Fields dict must contain one of: %s", output_fields)
             missing_output = True
 
         return missing_output
@@ -666,7 +699,7 @@ class OnyxAnalysis:
         invalid_attributes = list(analysis_dict.keys() - set(valid_attributes))
 
         if invalid_attributes != []:
-            logging.error("Invalid attribute in onyx analysis: %s", invalid_attributes)
+            logger.error("Invalid attribute in onyx analysis: %s", invalid_attributes)
             attribute_fail = True
 
         return attribute_fail
@@ -728,7 +761,7 @@ class OnyxAnalysis:
             outputs needs adding before publication of analysis
         Returns:
             result -- Analysis ID if valid submission, {} if test upload,
-                      None if upload fails.
+                    None if upload fails.
             exitcode -- 0 if successful, 1 if fail
         """
         payload = self._get_onyx_payload(publish_analysis)

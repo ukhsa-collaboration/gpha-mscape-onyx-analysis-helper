@@ -16,6 +16,8 @@ import regex as re
 from botocore.config import Config
 from botocore.exceptions import ClientError
 
+logger = logging.getLogger(__name__)
+
 
 def call_to_s3(func):
     """Decorator that provides error handling for any calls to s3.
@@ -26,28 +28,28 @@ def call_to_s3(func):
     @wraps(func)
     def call_to_s3_wrapper(*args, **kwargs):
         try:
-            logging.debug("Attempting connection to s3")
+            logger.debug("Attempting connection to s3")
             result, exitcode = func(*args, **kwargs)
-            logging.debug("Successful connection to s3")
+            logger.debug("Successful connection to s3")
 
             return result, exitcode
 
         except ClientError as exc:
-            logging.error("Client error: %s.", exc)
+            logger.error("Client error: %s.", exc)
             result = None
             exitcode = 1
 
             return result, exitcode
 
         except FileNotFoundError as exc:
-            logging.error("Check file or directory path is correct: %s", exc)
+            logger.error("Check file or directory path is correct: %s", exc)
             result = None
             exitcode = 1
 
             return result, exitcode
 
         except Exception as exc:
-            logging.error("Unhandled error: %s", exc)
+            logger.error("Unhandled error: %s", exc)
             result = None
             exitcode = 1
 
@@ -145,7 +147,7 @@ def get_s3_checksum(bucket: str, s3_key: str, s3_client: boto3.client, checksum_
         # Get md5 from within nested "" in etag
         checksum = re.search('"(.*)"', checksum).group(1)
     else:
-        logging.error("Invalid checksum type provided, provide one of sha256 or etag")
+        logger.error("Invalid checksum type provided, provide one of sha256 or etag")
         result = None
         exitcode = 1
 
@@ -162,10 +164,10 @@ def check_checksums_match(local_checksum, s3_checksum):
     """
 
     if local_checksum == s3_checksum:
-        logging.info("Local and s3 checksums match")
+        logger.info("Local and s3 checksums match")
         return 0
     else:
-        logging.error("Local and s3 checksums do not match")
+        logger.error("Local and s3 checksums do not match")
         return 1
 
 

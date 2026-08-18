@@ -21,7 +21,7 @@ Installation for users:
 
 Installation for developers (installs code in editable mode):
 
-`cd mscape-template`
+`cd onyx-analysis-helper`
 
 `pip install --editable '.[dev]'`
 
@@ -35,10 +35,86 @@ To install the codebase as part of another project, add this to your pyproject.t
 under [project] dependencies - you should pin a version you have built and tested with:
 ```python
 [project]
-dependencies = ["climb-onyx-client", "onyx-analysis-helper@git+https://github.com/ukhsa-collaboration/onyx-analysis-helper.git@1.0.0"]
+dependencies = [
+    "climb-onyx-client",
+    "onyx-analysis-helper@git+https://github.com/ukhsa-collaboration/onyx-analysis-helper.git@1.0.0",
+]
 ```
 
 ## Usage
+- [I want to use the decorator for my Onyx query](#Onyx-Query-Decorator)
+- [I want to use a default query function](#Query-onyx-using-provided-function)
+- [I want to create analysis tables](#Create-analysis-tables)
+
+
+## Onyx Query Decorator
+The onyx query decorator is a simple function decorator that can be added to functions that query onyx.
+
+The decorator will:
+- automatically run 3 retries if connection cannot be established, with 5 second pauses between tries.
+- write neat logging messages to the logger with name 'onyx_analysis_helper'.
+- silence exceptions by default, and return the record or response and an exitcode.
+
+### Use
+
+To use the onyx query decorator, first import the decorator:
+
+```python
+from onyx_analysis_helper.onyx_analysis_helper_functions import call_to_onyx
+```
+
+Then wrap your function using the decorator notation:
+```python
+@call_to_onyx
+def this_is_my_query_function(id, server):
+    exitcode = 0
+    record = onyx_client.get(id=id, server=server)
+    return record, exitcode
+```
+
+Note that the decorator returns two things - the record/data that the client method returns, and an exitcode, which is an integer where 0 is success and 1 is fail. __Your function must return both.__
+
+### I don't want to silence exceptions...
+
+Your function can take `silence` as a keyword argument. The decorator by default sets this to True,
+but an argument can overwrite this. Then any exceptions will be raised. An exitcode code will still be returned if no exceptions are raised.
+
+For example:
+
+```python
+@call_to_onyx
+def this_is_my_query_function(id, server, silence=False):
+    exitcode = 0
+    record = onyx_client.get(id=id, server=server)
+    return record, exitcode
+```
+When the function is called like so:
+```
+this_is_my_query_function("id=123", "myserver")
+```
+then any exceptions will be raised by the wrapper.
+
+## Query onyx using provided function
+There are some onyx query functions already written in the onyx analysis helper functions. These already use the decorator as above.
+
+To use these, import onyx analysis helper functions from the library, then use the function as below.
+
+
+```python
+from onyx_analysis_helper.onyx_analysis_helper.functions import (
+    query_onyx,
+    get_data_and_versions_from_onyx,
+    get_analysis_records,
+)
+```
+
+| function   | arguments                          | what it does |
+|------------|------------------------------------|--------------|
+| query_onyx | sample_id: str, server: str, silence: bool = True | Query onyx using OnyxClient.get for single sample and specified server. |
+| get_data_and_versions_from_onyx | sample_id: str, server: str, fields: list or None, silence: bool = True | Query onyx for specific climb id and server, then handle versions from Onyx and return just fields of interest if supplied.  |
+| get_analysis_records | sample_id: str, server: str, fields: list, silence: bool = True | Query onyx to get all analysis tables associated with a given sample ID on a given server. |
+
+## Create analysis tables
 
 Functionality from the repo can be imported into other code after
 installation:
@@ -174,15 +250,14 @@ else:
 Example submissions of data to onyx after creating a valid onyx analysis object:
 ```python
 # Attempt to add analysis to onyx but don't publish - if successful returns analysis id and exitcode of 0
-analysis_id, exitcode = onyx_analysis.write_analysis_to_onyx(server = "synthscape",
-                                                             dryrun = True,
-                                                             publish_analysis = False)
+analysis_id, exitcode = onyx_analysis.write_analysis_to_onyx(
+    server="synthscape", dryrun=True, publish_analysis=False
+)
 
 # Attempt to update an existing analysis (e.g. add report or outputs field) and then publish results
-analysis_id, exitcode = onyx_analysis.update_onyx_analysis(server = "synthscape",
-                                                           analysis_id = "A-123",
-                                                           dryrun = True,
-                                                           publish_analysis = True)
+analysis_id, exitcode = onyx_analysis.update_onyx_analysis(
+    server="synthscape", analysis_id="A-123", dryrun=True, publish_analysis=True
+)
 ```
 Note the use of dryrun = True in these examples to do a test upload/update. This option
 should always be used unless code is in production.

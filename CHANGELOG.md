@@ -1,4 +1,21 @@
-# Changelog 
+# Changelog
+
+## v0.6.3 - Patch silence toggle for onyx queries
+Problem: Onyx queries exceptions should not always be silenced, allow users to allow exceptions to
+be raised with toggle arg in wrapped functions. Implement this in the onyx query functions.
+
+### Add:
+- decorator parses the args from the func and if silence is present (either by default or specified
+on function call) then use that, else default to True. If True, do not raise exceptions.
+- explanation about the decorator added to the readme.
+
+### Change:
+- instead of `logging.debug`, logger instance is created with __name__ as the logger name, and `logger.debug` is used.
+
+_Not a Breaking change_
+
+---
+---
 
 ## v0.6.2 - Patch add v to version
 Problem: the `importlib.metadata` methods strip the 'v' from a version, so any pipelines that use the onyx 
@@ -8,11 +25,11 @@ analysis record.
 ### Fix:
 - if no 'v' in version, add one to the front before adding to the Onyx Analysis object.
 
-
 ---
 ---
 
 ## v0.6.1 - Patch publish to onyx
+
 Problem: the update_onyx_analysis function would take the fields of the onyx analysis object, then
 set the 'is_published' attribute on the object, but fields (without that attribute) was given to
 onyx to publish.
