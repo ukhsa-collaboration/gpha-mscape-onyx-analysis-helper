@@ -35,13 +35,16 @@ To install the codebase as part of another project, add this to your pyproject.t
 under [project] dependencies - you should pin a version you have built and tested with:
 ```python
 [project]
-dependencies = ["climb-onyx-client", "onyx-analysis-helper@git+https://github.com/ukhsa-collaboration/onyx-analysis-helper.git@1.0.0"]
+dependencies = [
+    "climb-onyx-client",
+    "onyx-analysis-helper@git+https://github.com/ukhsa-collaboration/onyx-analysis-helper.git@1.0.0",
+]
 ```
 
 ## Usage
-- [I want to use the decorator for my Onyx query](##Onyx-Query-Decorator)
-- [I want to use a default query function](##Query-onyx-using-provided-function)
-- [I want to create analysis tables](##Create-analysis-tables)
+- [I want to use the decorator for my Onyx query](#Onyx-Query-Decorator)
+- [I want to use a default query function](#Query-onyx-using-provided-function)
+- [I want to create analysis tables](#Create-analysis-tables)
 
 
 ## Onyx Query Decorator
@@ -64,8 +67,8 @@ Then wrap your function using the decorator notation:
 ```python
 @call_to_onyx
 def this_is_my_query_function(id, server):
-    record = onyx_client.get(id=id, server=server)
     exitcode = 0
+    record = onyx_client.get(id=id, server=server)
     return record, exitcode
 ```
 
@@ -101,7 +104,7 @@ To use these, import onyx analysis helper functions from the library, then use t
 from onyx_analysis_helper.onyx_analysis_helper.functions import (
     query_onyx,
     get_data_and_versions_from_onyx,
-    get_analysis_records
+    get_analysis_records,
 )
 ```
 
@@ -247,15 +250,14 @@ else:
 Example submissions of data to onyx after creating a valid onyx analysis object:
 ```python
 # Attempt to add analysis to onyx but don't publish - if successful returns analysis id and exitcode of 0
-analysis_id, exitcode = onyx_analysis.write_analysis_to_onyx(server = "synthscape",
-                                                             dryrun = True,
-                                                             publish_analysis = False)
+analysis_id, exitcode = onyx_analysis.write_analysis_to_onyx(
+    server="synthscape", dryrun=True, publish_analysis=False
+)
 
 # Attempt to update an existing analysis (e.g. add report or outputs field) and then publish results
-analysis_id, exitcode = onyx_analysis.update_onyx_analysis(server = "synthscape",
-                                                           analysis_id = "A-123",
-                                                           dryrun = True,
-                                                           publish_analysis = True)
+analysis_id, exitcode = onyx_analysis.update_onyx_analysis(
+    server="synthscape", analysis_id="A-123", dryrun=True, publish_analysis=True
+)
 ```
 Note the use of dryrun = True in these examples to do a test upload/update. This option
 should always be used unless code is in production.
