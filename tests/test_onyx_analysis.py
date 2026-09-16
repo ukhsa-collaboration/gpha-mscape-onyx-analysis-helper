@@ -104,7 +104,7 @@ def output_file_path(tmp_path_factory):
 
 @pytest.fixture
 def expected_s3_json():
-    s3_json = {"identifiers": [], "outputs": "s3://testbucket/ID-1234", "methods": "{}", "result_metrics": "{}"}
+    s3_json = {"identifiers": [], "outputs": "s3://testbucket/ID-1234"}
     return s3_json
 
 
