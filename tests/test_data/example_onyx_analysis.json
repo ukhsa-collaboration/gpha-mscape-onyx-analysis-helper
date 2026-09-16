@@ -4,7 +4,7 @@
     "analysis_date": "2025-08-21",
     "pipeline_name": "test-pipeline",
     "pipeline_url": "test-pipeline-url",
-    "pipeline_version": "0.1.0",
+    "pipeline_version": "v0.1.0",
     "result": "test result",
     "upstream_analyses": [],
     "report": "",

@@ -190,10 +190,11 @@ def test_check_checksums_match_pass(example_result_file_sha256):
     assert result == 0
 
 
-def test_check_sha256sums_match_fail(example_result_file_sha256):
+def test_check_sha256sums_match_fail(example_result_file_sha256, caplog):
     result = s3f.check_checksums_match(example_result_file_sha256, "incorrectsha256string")
 
     assert result == 1
+    print(caplog.text)
 
 
 @mock_aws
