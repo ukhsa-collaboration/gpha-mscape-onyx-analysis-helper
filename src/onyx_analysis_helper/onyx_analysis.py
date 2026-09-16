@@ -138,8 +138,6 @@ def read_analysis_id_from_file(analysis_id_file: Path, exitcode: int) -> tuple[s
     try:
         with Path(analysis_id_file).open("r") as file:
             lines = [line.rstrip() for line in file]
-            # Need code to catch if for some reason the analysis_id_file has >1 analysis_id in it
-            # e.g. something like if len(lines) != 1: crash with exitcode=1
             if len(lines) == 1:
                 analysis_id = lines[0]
                 logging.info("Analysis ID read from file %s", analysis_id_file)
@@ -272,7 +270,7 @@ def main():
             return exitcode
         # Write analysis ID to file
         if not dryrun:
-            analysis_id = analysis_id['analysis_id']
+            analysis_id = analysis_id["analysis_id"]
         with Path(analysis_id_file).open("w") as file:
             file.write(f"{analysis_id}")
         logging.info("Analysis ID written to file %s", analysis_id_file)
