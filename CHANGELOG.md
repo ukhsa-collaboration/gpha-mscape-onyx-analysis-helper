@@ -1,5 +1,15 @@
 # Changelog
 
+## v0.6.4 - Onyx analysis scripts for interacting with Onyx 
+Commandline interaction and functionality to push files to onyx. 
+
+### Added: 
+- onyx_analysis.py: functions and commandline interaction to push files to onyx. 
+- unit tests for onyx_analysis.py 
+
+---
+---
+
 ## v0.6.3 - Patch silence toggle for onyx queries
 Problem: Onyx queries exceptions should not always be silenced, allow users to allow exceptions to
 be raised with toggle arg in wrapped functions. Implement this in the onyx query functions.
