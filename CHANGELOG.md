@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.6.5 - Add devscape 
+Allow devscape server as option in CL argument for onyx_analysis script, and allow devscape_records as field in 
+onyx analysis helper table. 
+
+---
+---
+
 ## v0.6.4 - Onyx analysis scripts for interacting with Onyx 
 Commandline interaction and functionality to push files to onyx. 
 
