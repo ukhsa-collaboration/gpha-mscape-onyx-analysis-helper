@@ -693,6 +693,7 @@ class OnyxAnalysis:
             "identifiers",
             "synthscape_records",
             "mscape_records",
+            "devscape_records",
             "is_published",
         ]
 
