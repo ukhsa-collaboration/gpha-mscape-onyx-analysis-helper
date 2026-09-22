@@ -5,27 +5,25 @@ analyses ready for submission to onyx.
 
 ## Installation as standalone code
 
-Clone repo and create environment:
+Clone repo:
 
 `git clone git@github.com:ukhsa-collaboration/onyx-analysis-helper.git`
 
-`conda env create -n mscape_analysis`
+### Installation for users:
 
-`conda activate mscape_analysis`
-
-Installation for users:
+_Ensure you have a suitable environment to install this in (requires Python >=3.12)._
 
 `cd onyx-analysis-helper`
 
 `pip install .`
 
-Installation for developers (installs code in editable mode):
+### Installation for developers (installs code in editable mode):
 
 `cd onyx-analysis-helper`
 
 `pip install --editable '.[dev]'`
 
-Alternatively, install directly into a suitable environment using pip without cloning first:
+### Alternatively, install directly into a suitable environment using pip without cloning first:
 
 `pip install git+ssh://git@github.com/ukhsa-collaboration/gpha-mscape-onyx-analysis-helper.git`
 
@@ -224,7 +222,7 @@ methods_versions_fail = onyx_analysis.add_versions_to_methods(
 # results to be added in output files/report.
 results_fail = onyx_analysis.add_results(top_result = headline_result, results_dict = example_results)
 
-# Add climb ID - field is either mscape_records or synthscape_records
+# Add climb ID - field is either mscape_records, synthscape_records or devscape_records
 onyx_analysis.add_server_records(sample_id = record_id, server_name = "synthscape")
 
 # Add location of output files. Add report field if single file provided, add outputs field
