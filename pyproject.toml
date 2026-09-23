@@ -17,8 +17,8 @@ extra = ["pyyaml"]
 requires = ["setuptools"]
 build-backend = "setuptools.build_meta"
 
-#[project.scripts] # Update with main repo script here
-#qc_sample = "project_name_here.main_script:main"
+[project.scripts]
+onyx_analysis = "onyx_analysis_helper.onyx_analysis:main"
 
 [tool.ruff.lint] # Lint rules to follow - add or delete if required
 select = [
