@@ -675,6 +675,16 @@ def test_check_analysis_attributes_fail(invalid_field_dict, caplog):
     assert attr_fail
 
 
+def test_check_analysis_attributes_new_scape_fail(complete_field_dict):
+    field_dict = complete_field_dict.copy()
+    field_dict["newscape_records"] = []
+    analysis = oa.OnyxAnalysis()
+    for field, value in field_dict.items():
+        setattr(analysis, field, value)
+    attr_fail = analysis._check_analysis_attributes()
+    assert attr_fail
+
+
 @pytest.mark.parametrize(
     "test_input,publish_boolean,expected_output",
     [

@@ -49,7 +49,7 @@ def get_args():
         "-s",
         type=str,
         required=True,
-        choices=["mscape", "synthscape"],
+        choices=["mscape", "synthscape", "devscape"],
         help="Specify server code is being run on",
     )
 
