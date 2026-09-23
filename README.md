@@ -30,12 +30,12 @@ _Ensure you have a suitable environment to install this in (requires Python >=3.
 ## Installation in another project
 
 To install the codebase as part of another project, add this to your pyproject.toml
-under [project] dependencies - you should pin a version you have built and tested with:
+under [project] dependencies - **you should pin a version you have built and tested with**:
 ```python
 [project]
 dependencies = [
     "climb-onyx-client",
-    "onyx-analysis-helper@git+https://github.com/ukhsa-collaboration/onyx-analysis-helper.git@1.0.0",
+    "onyx-analysis-helper@git+https://github.com/ukhsa-collaboration/onyx-analysis-helper.git@0.0.0",
 ]
 ```
 
