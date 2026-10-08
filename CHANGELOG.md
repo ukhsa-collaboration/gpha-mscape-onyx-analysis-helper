@@ -1,18 +1,30 @@
 # Changelog
 
-## v0.6.5 - Add devscape 
-Allow devscape server as option in CL argument for onyx_analysis script, and allow devscape_records as field in 
-onyx analysis helper table. 
+## v0.6.6 - Add orange box version in onyx_analysis script.
+One first write to onyx (using 'write' subcommand), the orange box version can be added to the analysis json.
+
+### Added
+- optional command line arg for the orange box version in the `onyx_analysis.py` script.
+- function to add the orange box version into the methods section of the analysis table read in from the json. This includes
+checking if the versions section exists and raising an error if not, checking if the orange box version is already present, and
+if it does not match, it will _not_ overwrite, but write this to the log as a warning.
+- unit tests for these possibilities and the same test file but with the orange box version present.
+---
+---
+
+## v0.6.5 - Add devscape
+Allow devscape server as option in CL argument for onyx_analysis script, and allow devscape_records as field in
+onyx analysis helper table.
 
 ---
 ---
 
-## v0.6.4 - Onyx analysis scripts for interacting with Onyx 
-Commandline interaction and functionality to push files to onyx. 
+## v0.6.4 - Onyx analysis scripts for interacting with Onyx
+Commandline interaction and functionality to push files to onyx.
 
-### Added: 
-- onyx_analysis.py: functions and commandline interaction to push files to onyx. 
-- unit tests for onyx_analysis.py 
+### Added:
+- onyx_analysis.py: functions and commandline interaction to push files to onyx.
+- unit tests for onyx_analysis.py
 
 ---
 ---
@@ -35,9 +47,9 @@ _Not a Breaking change_
 ---
 
 ## v0.6.2 - Patch add v to version
-Problem: the `importlib.metadata` methods strip the 'v' from a version, so any pipelines that use the onyx 
-analysis helper methods to add the pipeline information (name, version etc), the v will be dropped from the 
-analysis record. 
+Problem: the `importlib.metadata` methods strip the 'v' from a version, so any pipelines that use the onyx
+analysis helper methods to add the pipeline information (name, version etc), the v will be dropped from the
+analysis record.
 
 ### Fix:
 - if no 'v' in version, add one to the front before adding to the Onyx Analysis object.
