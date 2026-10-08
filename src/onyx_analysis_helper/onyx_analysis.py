@@ -177,8 +177,6 @@ def add_orange_box_version_to_json(json: Path, orange_box_version: str) -> oa.On
         )
         return onyx_analysis
 
-    # What about if there is any orange box version present?
-
     # Add the orange box version and a versions hash to the methods in the analysis object:
     add_version_fail: bool = onyx_analysis.add_versions_to_methods(
         tool_versions={"orange_box_version": orange_box_version},
