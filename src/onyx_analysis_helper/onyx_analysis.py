@@ -76,6 +76,15 @@ def get_args():
     onyx_write_subparser.add_argument(
         "--input-json", "-j", type=Path, help="Path to input file with onyx analysis json"
     )
+    onyx_write_subparser.add_argument(
+        "--orange-box-version",
+        "-ob",
+        type=str,
+        help="""
+        Optional: Version of the Orange box. If provided, the orange box version will be added to the onyx analysis json
+        file provided for auditability.""",
+        required=False,
+    )
 
     # s3 push
     s3_subparser = subparsers.add_parser(
@@ -125,6 +134,65 @@ def set_up_logger(stdout_file):
 
 
 # General functions
+def add_orange_box_version_to_json(json: Path, orange_box_version: str) -> oa.OnyxAnalysis:
+    """
+    Read in analysis table json, add in the orange box version, write new json, return exitcode and
+    path.
+    This leaves a papertrail of changes rather than change and immediately pushing to onyx.
+
+    Arguments:
+        json (Path) - path to analysis table json
+        orange_box_version (str) - orange box version
+    Returns:
+        onyx_analysis - instance of OnyxAnalysis populated from the json and the orange box version.
+    Raises:
+        RuntimeError - if added versions fails.
+        ValueError - if version not present in the table.
+    """
+
+    # Load in Onyx analysis JSON file
+    onyx_analysis = oa.OnyxAnalysis()
+
+    onyx_analysis.read_analysis_from_json(json)
+
+    # Check if the version is present (happens if nextflow crashes on write.):
+    try:
+        versions_present: dict = {
+            ver["name"]: ver["version"] for ver in onyx_analysis.methods["versions"]
+        }
+    # Catch the versions section is not present:
+    except KeyError as k:
+        logging.error("Analysis table has no 'versions' in the methods.")
+        raise ValueError("Versions not found in analysis table.") from k
+
+    # Check to see if the orange box version is present or any orange box version:
+    if "orange_box_version" in versions_present:
+        if versions_present["orange_box_version"] == orange_box_version:
+            logging.debug("Orange box version %s already in json.", orange_box_version)
+        logging.warning(
+            "Orange box version %s was found in the onyx analysis table, but does not match "
+            "the provided version %s. Will not update.",
+            versions_present["orange_box_version"],
+            orange_box_version,
+        )
+        return onyx_analysis
+
+    # What about if there is any orange box version present?
+
+    # Add the orange box version and a versions hash to the methods in the analysis object:
+    add_version_fail: bool = onyx_analysis.add_versions_to_methods(
+        tool_versions={"orange_box_version": orange_box_version},
+        include_versions_hash=False,
+    )
+
+    # Add in check that adding orange box version and has was successful else exit.
+    if add_version_fail:
+        raise RuntimeError("Could not add Orange Box version to methods in analysis table.")
+
+    onyx_analysis.write_analysis_to_json(json)
+    return onyx_analysis
+
+
 def read_analysis_id_from_file(analysis_id_file: Path, exitcode: int) -> tuple[str | None, int]:
     """Function to read in analysis ID from file. If file not correct structure or can't be
     found, a non-zero exitcode is returned.
@@ -246,8 +314,14 @@ def main():
             return exitcode
         # Read in analysis json
         try:
-            onyx_analysis = oa.OnyxAnalysis()
-            onyx_analysis.read_analysis_from_json(args.input_json)
+            if args.orange_box_version:
+                # Read in the json, add the orange box version, write it to file for audit:
+                onyx_analysis: oa.OnyxAnalysis = add_orange_box_version_to_json(
+                    args.orange_box_version, args.input_json
+                )
+            else:
+                onyx_analysis: oa.OnyxAnalysis = oa.OnyxAnalysis()
+                onyx_analysis.read_analysis_from_json(args.input_json)
             logging.info("Analysis table successfully read from json: %s", args.input_json)
         except Exception as error:
             logging.error("Couldn't read analysis from json: %s, %s", args.input_json, error)
