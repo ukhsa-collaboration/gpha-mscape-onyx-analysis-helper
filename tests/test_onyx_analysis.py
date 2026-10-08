@@ -184,7 +184,7 @@ def test_add_orange_box_version_to_json_already_there(tmp_path, caplog):
     """Check that if the orange box version is already there, that it skips."""
     caplog.set_level(logging.DEBUG)
 
-    test_json = Path(root / "tests" / "test_data" / "example_onyx_analysis with_ob.json")
+    test_json = Path(root / "tests" / "test_data" / "example_onyx_analysis_with_ob.json")
     oas.add_orange_box_version_to_json(test_json, "1.2.3")
 
     assert "Orange box version 1.2.3 already in json" in caplog.text
