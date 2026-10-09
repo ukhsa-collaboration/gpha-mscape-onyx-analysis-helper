@@ -4,9 +4,11 @@
 Unit tests for functions in the onyx_analysis.py
 script in bin/.
 """
+
 import json
 import logging
 import os
+import shutil
 from pathlib import Path
 
 import boto3
@@ -16,6 +18,8 @@ from moto.server import ThreadedMotoServer
 
 from onyx_analysis_helper import onyx_analysis as oas
 from onyx_analysis_helper import s3_functions as s3f  # noqa: F401
+
+root: Path = Path(__file__).resolve().parents[1]
 
 
 # Fixtures
@@ -77,8 +81,6 @@ def data_file():
     return file
 
 
-
-
 @pytest.fixture
 def s3_file_list():
     files = [
@@ -115,6 +117,7 @@ def test_read_analysis_id_from_file(analysis_id_file):
     print(tuple_return)
     assert tuple_return == ("ID-1234", 0)
 
+
 @mock_aws
 def test_upload_file_to_s3(
     s3_client, test_bucket, quality_file, result_file, data_file, s3_file_list, caplog
@@ -143,3 +146,57 @@ def test_write_s3_locations_to_json(s3_file_list, output_file_path, expected_s3_
         s3_json = json.load(file)
     print(s3_json)
     assert s3_json == expected_s3_json
+
+
+def test_add_orange_box_version_to_json(tmp_path):
+    # copy the file so it can be edited
+    test_json = Path(root / "tests" / "test_data" / "example_onyx_analysis.json")
+    file_name: str = test_json.name
+    new_file_name = Path(tmp_path / file_name)
+
+    shutil.copyfile(test_json, new_file_name)
+
+    # run the function being tested
+    analysis_table = oas.add_orange_box_version_to_json(new_file_name, "1.0.0")
+
+    # get the versions into a flattened dict
+    versions_list = analysis_table.methods["versions"]
+    versions_dict = {
+        version_dict["name"]: version_dict["version"] for version_dict in versions_list
+    }
+
+    assert versions_dict["orange_box_version"] == "1.0.0"
+    assert len(versions_dict.keys()) == 3  # make sure the other versions haven't been overwritten
+
+
+def test_add_orange_box_version_to_json_no_versions(caplog):
+    """Raise ValueError if onyx analysis table has no orange box version."""
+    # copy the file so it can be edited
+    test_json = Path(root / "tests" / "test_data" / "example_onyx_analysis_fail.json")
+
+    with pytest.raises(ValueError, match="Versions not found in analysis table"):
+        oas.add_orange_box_version_to_json(test_json, "1.0.0")
+    assert "Analysis table has no 'versions' in the methods" in caplog.text
+    print(caplog.text)
+
+
+def test_add_orange_box_version_to_json_already_there(tmp_path, caplog):
+    """Check that if the orange box version is already there, that it skips."""
+    caplog.set_level(logging.DEBUG)
+
+    test_json = Path(root / "tests" / "test_data" / "example_onyx_analysis_with_ob.json")
+    oas.add_orange_box_version_to_json(test_json, "1.2.3")
+
+    assert "Orange box version 1.2.3 already in json" in caplog.text
+    print(caplog.text)
+
+
+def test_add_orange_box_version_to_json_already_there_different_version(tmp_path, caplog):
+    """Check that if the orange box version is already there but the version does not match, it logs and skips."""
+    caplog.set_level(logging.WARNING)
+
+    test_json = Path(root / "tests" / "test_data" / "example_onyx_analysis_with_ob.json")
+    oas.add_orange_box_version_to_json(test_json, "2.3.4")
+
+    assert "Will not update" in caplog.text
+    print(caplog.text)
