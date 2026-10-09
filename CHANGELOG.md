@@ -1,7 +1,7 @@
 # Changelog
 
 ## v0.6.6 - Add orange box version in onyx_analysis script.
-One first write to onyx (using 'write' subcommand), the orange box version can be added to the analysis json.
+On first write to onyx (using 'write' subcommand), the orange box version can be added to the analysis json.
 
 ### Added
 - optional command line arg for the orange box version in the `onyx_analysis.py` script.
