@@ -184,7 +184,7 @@ def add_orange_box_version_to_json(json: Path, orange_box_version: str) -> oa.On
         include_versions_hash=False,
     )
 
-    # Add in check that adding orange box version and has was successful else exit.
+    # Add in check that adding orange box version was successful else exit.
     if add_version_fail:
         raise RuntimeError("Could not add Orange Box version to methods in analysis table.")
 
