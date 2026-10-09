@@ -29,7 +29,7 @@ CONFIG = OnyxConfig(
 def get_args():
     """Get command line arguments"""
     parser = argparse.ArgumentParser(
-        prog="onyx_helper",
+        prog="onyx_analysis",
         description="""Script with sub-commands to populate onyx analysis
         table and push analysis files to s3.
         """,
@@ -267,7 +267,7 @@ def write_s3_locations_to_json(
         bucket -- Bucket s3 files were uploaded to
         outdir -- Location to store s3 location json file
     Returns:
-        s3_locations_file -- File containing onyx analysis json with s3 URI
+        s3_json -- File containing onyx analysis json with s3 URI
     """
     onyx_analysis = oa.OnyxAnalysis()
     # Add files to outputs field - if one file use whole URI, if multiple files use prefix
