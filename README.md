@@ -43,6 +43,7 @@ dependencies = [
 - [I want to use the decorator for my Onyx query](#Onyx-Query-Decorator)
 - [I want to use a default query function](#Query-onyx-using-provided-function)
 - [I want to create analysis tables](#Create-analysis-tables)
+- [I want to push analysis tables to Onyx](#Push-analysis-tables)
 
 
 ## Onyx Query Decorator
@@ -275,3 +276,73 @@ fields that might already by in onyx for the given analysis_id.
 Note also that the `is_published` attribute is only set by the `update_onyx_analysis` and
 `write_analysis_to_onyx` methods. I the attribute is set any other way before running these methods,
 these methods will overwrite that attribute.
+
+## Push Analysis Tables
+
+Once the analysis tables have been created and are available as json files (ideally using the Onyx
+analysis helper, as above), then there are 4 steps to follow to push these tables to Onyx. These
+steps are broken down into subcommands for the `onyx_analysis` script, which can be used on the
+commandline once the `Onyx Analysis Helper` is installed.
+
+### 1. First Write to Onyx
+```
+onyx_analysis write [-h] --climbid CLIMBID --output OUTPUT --server {mscape,synthscape,devscape} (--test | --prod) [--input-json INPUT_JSON] [--orange-box-version ORANGE_BOX_VERSION]
+```
+The sample ID, output path, server, results json must be given, as well as the choice of `--prod` to
+push to Onyx, or `--test` to run without pushing to Onyx.
+
+_Under the hood_:
+
+- a. Check if analysis ID file `{id}.onyx_analysis.write.analysis_id.txt` exists, if it does, exit.
+- b. Read in the json file into an instance of the OnyxAnalysis object
+- c. Check the integrity of the object
+- d. Write analysis to onyx
+- e. if `--prod` used, save the returned analysis ID to a file `{id}.onyx_analysis.write.analysis_id.txt`.
+
+If the orange box version is provided here, the orange box version is added to the OnyxAnalysis object
+in step 1.b., and the new object is written to the same json (effectively overwriting).
+
+### 2. Upload to S3
+```
+onyx_analysis s3_upload [-h] --climbid CLIMBID --output OUTPUT --server {mscape,synthscape,devscape} (--test | --prod) [--bucket BUCKET] [--analysis-id ANALYSIS_ID] [--input-files INPUT_FILES]
+```
+The sample ID, output path, server, bucket, analysis ID and input files (to upload to S3) are required, as well as
+the choice of `--prod` to push to Onyx, or `--test` to run without pushing to Onyx.
+
+_Under the hood_:
+
+- a. analysis ID is read in from the file (from step 1.e).
+- b. s3 client is set up
+- c. files are pushed to S3
+- d. S3 locations (paths/URLs) are saved to json file `{id}.onyx_analysis.s3_upload.analysis_fields.json`.
+
+### 3. Update Onyx
+```
+onyx_analysis update [-h] --climbid CLIMBID --output OUTPUT --server {mscape,synthscape,devscape} (--test | --prod) [--analysis-id ANALYSIS_ID] [--input-json INPUT_JSON]
+```
+The sample ID, output path, server, analysis ID and input json (analysis table) are required, as well as
+the choice of `--prod` to push to Onyx, or `--test` to run without pushing to Onyx.
+
+_Under the hood_:
+
+- a. analysis ID is read in from the file (from step 1.d).
+- b. read in analysis table from json (from step 2.d).
+- c. update the analysis table in onyx
+- d. write analysis id to a new file `{id}.onyx_analysis.update.analysis_id.txt`
+
+_Note: when updating an analysis table already written to Onyx, only fields that are provided will be updated. In this_
+_instance, the Onyx Analysis object is empty except for the S3 information, and thus only these fields are effectively_
+_added into the already published analysis table in Onyx._
+
+### 4. Publish
+```
+onyx_analysis publish [-h] --climbid CLIMBID --output OUTPUT --server {mscape,synthscape,devscape} (--test | --prod) [--analysis-id ANALYSIS_ID]
+```
+The sample ID, output path, server and analysis ID are required, as well as the choice of `--prod` to push to Onyx,
+or `--test` to run without pushing to Onyx.
+
+_Under the hood_:
+
+- a. analysis ID is read in from the file (from step 3.d).
+- b. update onyx analysis with `is_published` field switched to true.
+- c. writes analysis ID returned from the onyx write step to a new file `{id}.onyx_analysis.publish.analysis_id.txt`
