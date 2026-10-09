@@ -285,6 +285,7 @@ steps are broken down into subcommands for the `onyx_analysis` script, which can
 commandline once the `Onyx Analysis Helper` is installed.
 
 ### 1. First Write to Onyx
+This sub-command writes an analysis table stored in a json to onyx and returns an analysis id. Optionally, an orange box version is added to the analysis table before writing to onyx.
 ```
 onyx_analysis write [-h] --climbid CLIMBID --output OUTPUT --server {mscape,synthscape,devscape} (--test | --prod) [--input-json INPUT_JSON] [--orange-box-version ORANGE_BOX_VERSION]
 ```
@@ -303,6 +304,7 @@ If the orange box version is provided here, the orange box version is added to t
 in step 1.b., and the new object is written to the same json (effectively overwriting).
 
 ### 2. Upload to S3
+This step takes the analysis id created in step 1 and uses it to create s3 keys to store any files associated with the analysis in s3. 
 ```
 onyx_analysis s3_upload [-h] --climbid CLIMBID --output OUTPUT --server {mscape,synthscape,devscape} (--test | --prod) [--bucket BUCKET] [--analysis-id ANALYSIS_ID] [--input-files INPUT_FILES]
 ```
@@ -317,6 +319,7 @@ _Under the hood_:
 - d. S3 locations (paths/URLs) are saved to json file `{id}.onyx_analysis.s3_upload.analysis_fields.json`.
 
 ### 3. Update Onyx
+This step updates the onyx analysis created in step 1 with the locations of the files written to s3 in step 2.
 ```
 onyx_analysis update [-h] --climbid CLIMBID --output OUTPUT --server {mscape,synthscape,devscape} (--test | --prod) [--analysis-id ANALYSIS_ID] [--input-json INPUT_JSON]
 ```
@@ -335,6 +338,7 @@ _instance, the Onyx Analysis object is empty except for the S3 information, and 
 _added into the already published analysis table in Onyx._
 
 ### 4. Publish
+The final step publishes the analysis table once the s3 locations have been added and the analysis table is complete. The analysis table will be visible in onyx after this step.
 ```
 onyx_analysis publish [-h] --climbid CLIMBID --output OUTPUT --server {mscape,synthscape,devscape} (--test | --prod) [--analysis-id ANALYSIS_ID]
 ```
