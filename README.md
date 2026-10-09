@@ -274,7 +274,7 @@ set in the onyx_analysis helper when running onyx_analysis.update_onyx_analysis 
 fields that might already by in onyx for the given analysis_id.
 
 Note also that the `is_published` attribute is only set by the `update_onyx_analysis` and
-`write_analysis_to_onyx` methods. I the attribute is set any other way before running these methods,
+`write_analysis_to_onyx` methods. If the attribute is set any other way before running these methods,
 these methods will overwrite that attribute.
 
 ## Push Analysis Tables
