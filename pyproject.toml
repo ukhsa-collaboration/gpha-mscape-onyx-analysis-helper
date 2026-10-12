@@ -10,7 +10,7 @@ dependencies = ["climb-onyx-client", "pandas", "boto3", "regex"]
 version = {attr = "onyx_analysis_helper.__version__"} # Add underscore separated repo name here
 
 [project.optional-dependencies] # Dependencies for developers only - add more if required
-dev = ["ruff", "pytest", "pre-commit", "regex", "moto[s3, server]"]
+dev = ["ruff", "pytest", "pre-commit", "regex", "moto[s3, server]<=5.2.3"]
 extra = ["pyyaml"]
 
 [build-system] # Leave this section
