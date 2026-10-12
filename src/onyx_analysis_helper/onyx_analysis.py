@@ -168,7 +168,7 @@ def add_orange_box_version_to_json(json: Path, orange_box_version: str) -> oa.On
     # Check to see if the orange box version is present or any orange box version:
     if "orange_box_version" in versions_present:
         if versions_present["orange_box_version"] == orange_box_version:
-            logging.debug("Orange box version %s already in json.", orange_box_version)
+            logging.warning("Orange box version %s already in json.", orange_box_version)
         else:
             logging.warning(
                 "Orange box version %s was found in the onyx analysis table, but does not match "
