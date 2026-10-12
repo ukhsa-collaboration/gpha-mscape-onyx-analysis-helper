@@ -1,5 +1,13 @@
 # Changelog
 
+## v0.6.7 - HotFix for swapping args in function call
+
+### Fixed
+- Swapped args for json and orange box version in the add_orange_box_version_to_json function call.
+
+---
+---
+
 ## v0.6.6 - Add orange box version in onyx_analysis script.
 On first write to onyx (using 'write' subcommand), the orange box version can be added to the analysis json.
 
