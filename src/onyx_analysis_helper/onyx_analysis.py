@@ -171,11 +171,11 @@ def add_orange_box_version_to_json(json: Path, orange_box_version: str) -> oa.On
             logging.debug("Orange box version %s already in json.", orange_box_version)
         else:
             logging.warning(
-            "Orange box version %s was found in the onyx analysis table, but does not match "
-            "the provided version %s. Will not update.",
-            versions_present["orange_box_version"],
-            orange_box_version,
-        )
+                "Orange box version %s was found in the onyx analysis table, but does not match "
+                "the provided version %s. Will not update.",
+                versions_present["orange_box_version"],
+                orange_box_version,
+            )
         return onyx_analysis
 
     # Add the orange box version and a versions hash to the methods in the analysis object:
@@ -316,7 +316,7 @@ def main():
             if args.orange_box_version:
                 # Read in the json, add the orange box version, write it to file for audit:
                 onyx_analysis: oa.OnyxAnalysis = add_orange_box_version_to_json(
-                    args.orange_box_version, args.input_json
+                    json=args.input_json, orange_box_version=args.orange_box_version
                 )
             else:
                 onyx_analysis: oa.OnyxAnalysis = oa.OnyxAnalysis()

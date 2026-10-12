@@ -32,7 +32,7 @@ jobs:
     - name: Install code base
       run: pip install .
     - name: Install tests and linter
-      run: pip install ruff pytest pytest-cov regex moto[s3,server]
+      run: pip install '.[dev]'
     - name: Lint with ruff
       run: |
         # Stop the build if there are Python syntax errors
@@ -41,4 +41,4 @@ jobs:
         # e.g. ruff check --output-format=github --target-version=py312 --ignore PTH118,PTH123
     - name: Test with pytest
       run: |
-        pytest --cov
+        pytest --cov=onyx_analysis_helper .
