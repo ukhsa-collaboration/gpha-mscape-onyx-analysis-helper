@@ -6,6 +6,9 @@
 - Swapped args for json and orange box version in the add_orange_box_version_to_json function call.
 - pinned version of moto to v5.2.3 as recent pre-release v5.2.4 has bugs that causes unit tests to crash on the GH actions.
 
+### Added
+- unit tests for main write function.
+
 ---
 ---
 
