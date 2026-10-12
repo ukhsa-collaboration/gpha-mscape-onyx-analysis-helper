@@ -5,11 +5,13 @@ Unit tests for functions in the onyx_analysis.py
 script in bin/.
 """
 
+import argparse
 import json
 import logging
 import os
 import shutil
 from pathlib import Path
+from unittest.mock import patch
 
 import boto3
 import pytest
@@ -200,3 +202,57 @@ def test_add_orange_box_version_to_json_already_there_different_version(tmp_path
 
     assert "Will not update" in caplog.text
     print(caplog.text)
+
+
+@patch("onyx_analysis_helper.onyx_analysis_helper_functions.OnyxAnalysis.write_analysis_to_onyx")
+@patch("argparse.ArgumentParser.parse_args")
+def test_main_write(mock_args, mock_write_analysis, caplog, tmp_path):
+    analysis_id = "AID-12345678"
+    mock_write_analysis.return_value = ({"analysis_id": analysis_id}, 0)
+    mock_args.return_value = argparse.Namespace(
+        command="write",
+        climbid="ID-123456789",
+        output=tmp_path,
+        server="synthscape",
+        test=False,
+        prod=True,
+        input_json=Path(root / "tests" / "test_data" / "example_onyx_analysis.json"),
+        orange_box_version="v1.0.0",
+    )
+    oas.main()
+    assert "Analysis table successfully read from json" in caplog.text
+    assert "Analysis ID written to file" in caplog.text
+
+    with Path(tmp_path / "ID-123456789.onyx_analysis.write.analysis_id.txt").open() as f:
+        line = f.readline().strip()
+        print(line)
+        assert line == analysis_id
+
+
+@patch("onyx_analysis_helper.onyx_analysis_helper_functions.OnyxAnalysis.write_analysis_to_onyx")
+@patch("argparse.ArgumentParser.parse_args")
+def test_main_write_when_version_present(mock_args, mock_write_analysis, caplog, tmp_path):
+    caplog.set_level(logging.DEBUG)
+
+    analysis_id = "AID-23456789"
+    mock_write_analysis.return_value = ({"analysis_id": analysis_id}, 0)
+    mock_args.return_value = argparse.Namespace(
+        command="write",
+        climbid="ID-234567890",
+        output=tmp_path,
+        server="synthscape",
+        test=False,
+        prod=True,
+        input_json=Path(root / "tests" / "test_data" / "example_onyx_analysis_with_ob.json"),
+        orange_box_version="1.2.3",
+    )
+
+    oas.main()
+
+    assert "Orange box version 1.2.3 already in json" in caplog.text
+    assert "Analysis table successfully read from json" in caplog.text
+    assert "Analysis ID written to file" in caplog.text
+
+    with Path(tmp_path / "ID-234567890.onyx_analysis.write.analysis_id.txt").open() as f:
+        line = f.readline().strip()
+        assert line == analysis_id
