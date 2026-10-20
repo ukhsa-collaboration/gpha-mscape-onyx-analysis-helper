@@ -296,6 +296,39 @@ def invalid_field_dict():
 
 
 @pytest.fixture
+def invalid_field_dict_onyx():
+    field_dict = {
+        "invalid_name": "test-analysis",
+        "description": "This is a test analysis",
+        "analysis_date": "2025-08-21",
+        "pipeline_name": "test-pipeline",
+        "pipeline_url": "test-pipeline-url",
+        "pipeline_version": "v0.1.0",
+        "upstream_analyses": [],
+        "report": "",
+        "outputs": "path/to/outputs",
+        "result": "test result",
+        "methods": {
+            "versions": [
+                {"name": "a_great_tool", "version": "1.0.0"},
+                {"name": "another_great_tool", "version": "2000.0.0"},
+            ],
+            "thresholds": {"limit": 10},
+            "method2": "method example 2",
+        },
+        "result_metrics": {
+            "Example result 1": 9,
+            "Example result 2": "Fail",
+            "Example result 3": 0.3,
+        },
+        "synthscape_records": ["ID-123456789"],
+        "identifiers": [],
+    }
+
+    return field_dict
+
+
+@pytest.fixture
 def example_result_dir():
     result_dir = Path(REPO_PATH / "tests/test_data/")
     return result_dir
@@ -552,8 +585,14 @@ def test__get_fields():
     assert isinstance(fields["result_metrics"], str)
 
 
-def test__get_fields_empty():
+def test__get_fields_empty_gpha():
     analysis = oa.GphaAnalysis()
+    fields = analysis._get_fields()
+    assert len(fields) == 0
+
+
+def test__get_fields_empty_onyx():
+    analysis = oa.OnyxAnalysis()
     fields = analysis._get_fields()
     assert len(fields) == 1
 
@@ -749,7 +788,7 @@ def test_check_analysis_attributes_new_scape_fail(complete_field_dict_base):
             id="Correct input for publish analysis object - no errors",
         ),
         pytest.param(
-            "invalid_field_dict",
+            "invalid_field_dict_onyx",
             True,
             [True, True, False],
             id="Incorrect input for publish analysis object - missing field and invalid fields fails",
