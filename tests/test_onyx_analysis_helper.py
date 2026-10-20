@@ -22,26 +22,6 @@ REPO_PATH = Path(__file__).parents[1]
 
 # Fixtures
 @pytest.fixture
-def example_methods():
-    methods_dict = {"method1": "method example 1", "method2": "method example 2"}
-
-    return methods_dict
-
-
-@pytest.fixture
-def expected_methods_json():
-    methods_json = (
-        '{"method1": "method example 1", "method2": "method example 2", '
-        '"versions": ['
-        '{"name": "a_great_tool", "version": "1.0.0"}, '
-        '{"name": "another_great_tool", "version": "2000.0.0"}'
-        "]}"
-    )
-
-    return methods_json
-
-
-@pytest.fixture
 def example_results():
     methods_dict = {"Example result 1": 9, "Example reuslt 2": "Fail", "Example result 3": 0.3}
 
@@ -61,6 +41,54 @@ def onyx_json_file_path(tmp_path_factory):
     return str(tmp_dir)
 
 
+@pytest.fixture
+def complete_field_dict_base():
+    field_dict = {
+        "name": "test-analysis",
+        "description": "This is a test analysis",
+        "analysis_date": "2025-08-21",
+        "pipeline_name": "test-pipeline",
+        "pipeline_url": "test-pipeline-url",
+        "pipeline_version": "v0.1.0",
+        "pipeline_command": "test-pipeline-command",
+        "result": "test result",
+        "methods": {
+            "versions": [
+                {"name": "a_great_tool", "version": "1.0.0"},
+                {"name": "another_great_tool", "version": "2000.0.0"},
+            ],
+            "thresholds": {"limit": 10},
+            "method2": "method example 2",
+        },
+        "result_metrics": {
+            "Example result 1": 9,
+            "Example result 2": "Fail",
+            "Example result 3": 0.3,
+        },
+    }
+
+    return field_dict
+
+
+# Same as fixture 'complete_field_dict_base' BUT the result_metrics and methods are json strings also.
+@pytest.fixture
+def complete_base_field_dict_json():
+    json_dict = {
+        "name": "test-analysis",
+        "description": "This is a test analysis",
+        "analysis_date": "2025-08-21",
+        "pipeline_name": "test-pipeline",
+        "pipeline_url": "test-pipeline-url",
+        "pipeline_version": "v0.1.0",
+        "pipeline_command": "test-pipeline-command",
+        "result": "test result",
+        "methods": '{"versions": [{"name": "a_great_tool", "version": "1.0.0"}, {"name": "another_great_tool", "version": "2000.0.0"}], "thresholds": {"limit": 10}, "method2": "method example 2"}',
+        "result_metrics": '{"Example result 1": 9, "Example result 2": "Fail", "Example result 3": 0.3}',
+    }
+    return json_dict
+
+
+# includes additional fields for onyx tables
 @pytest.fixture
 def complete_field_dict():
     field_dict = {
@@ -94,32 +122,33 @@ def complete_field_dict():
     return field_dict
 
 
-# Same as fixture 'complete_field_dict' BUT the result_metrics and methods are json strings also.
 @pytest.fixture
-def complete_field_dict_json():
-    json_dict = {
-        "name": "test-analysis",
+def no_error_log():
+    log = ""
+    return log
+
+
+@pytest.fixture
+def missing_field_dict_base():
+    field_dict = {
         "description": "This is a test analysis",
         "analysis_date": "2025-08-21",
         "pipeline_name": "test-pipeline",
         "pipeline_url": "test-pipeline-url",
         "pipeline_version": "v0.1.0",
         "result": "test result",
-        "upstream_analyses": [],
-        "report": "",
-        "outputs": "path/to/outputs",
-        "methods": '{"versions": [{"name": "a_great_tool", "version": "1.0.0"}, {"name": "another_great_tool", "version": "2000.0.0"}], "thresholds": {"limit": 10}, "method2": "method example 2"}',
+        "methods": {
+            "versions": [
+                {"name": "a_great_tool", "version": "1.0.0"},
+                {"name": "another_great_tool", "version": "2000.0.0"},
+            ],
+            "thresholds": {"limit": 10},
+            "method2": "method example 2",
+        },
         "result_metrics": '{"Example result 1": 9, "Example result 2": "Fail", "Example result 3": 0.3}',
-        "synthscape_records": ["ID-123456789"],
-        "identifiers": [],
     }
-    return json_dict
 
-
-@pytest.fixture
-def no_error_log():
-    log = ""
-    return log
+    return field_dict
 
 
 @pytest.fixture
@@ -233,14 +262,8 @@ def missing_both_log():
 
 
 @pytest.fixture
-def example_onyx_json_file():
-    file = Path(REPO_PATH / "tests/test_data/example_onyx_analysis.json")
-    return file
-
-
-@pytest.fixture
-def example_onyx_json_file_fail():
-    file = Path(REPO_PATH / "tests/test_data/example_onyx_analysis_fail.json")
+def example_base_json_file():
+    file = Path(REPO_PATH / "tests/test_data/example_base_analysis.json")
     return file
 
 
@@ -254,9 +277,6 @@ def invalid_field_dict():
         "pipeline_url": "test-pipeline-url",
         "pipeline_version": "v0.1.0",
         "result": "test result",
-        "upstream_analyses": [],
-        "report": "",
-        "outputs": "path/to/outputs",
         "methods": {
             "versions": [
                 {"name": "a_great_tool", "version": "1.0.0"},
@@ -270,8 +290,6 @@ def invalid_field_dict():
             "Example result 2": "Fail",
             "Example result 3": 0.3,
         },
-        "synthscape_records": ["ID-123456789"],
-        "identifiers": [],
     }
 
     return field_dict
@@ -485,7 +503,7 @@ def test_decorator_on_func_with_silence_arg(caplog):
 def test_add_analysis_details():
     expected_name = "example_analysis"
     expected_description = "This is an example analysis."
-    analysis = oa.OnyxAnalysis()
+    analysis = oa.GphaAnalysis()
     analysis.add_analysis_details(expected_name, expected_description)
 
     assert analysis.name == expected_name
@@ -493,7 +511,7 @@ def test_add_analysis_details():
 
 
 def test_add_analysis_date_no_date():
-    analysis = oa.OnyxAnalysis()
+    analysis = oa.GphaAnalysis()
     analysis._set_analysis_date()
     print(analysis.analysis_date)
 
@@ -502,7 +520,7 @@ def test_add_analysis_date_no_date():
 
 def test_add_analysis_date_already_date():
     correct_date = datetime.datetime(2025, 8, 21)
-    analysis = oa.OnyxAnalysis()
+    analysis = oa.GphaAnalysis()
     analysis.analysis_date = correct_date
     analysis._set_analysis_date()
 
@@ -510,7 +528,7 @@ def test_add_analysis_date_already_date():
 
 
 def test__get_fields():
-    analysis = oa.OnyxAnalysis()
+    analysis = oa.GphaAnalysis()
     analysis.methods = {
         "versions": [
             {"name": "a_great_tool", "version": "1.0.0"},
@@ -535,13 +553,13 @@ def test__get_fields():
 
 
 def test__get_fields_empty():
-    analysis = oa.OnyxAnalysis()
+    analysis = oa.GphaAnalysis()
     fields = analysis._get_fields()
     assert len(fields) == 1
 
 
 def test__get_fields_other_field_is_dict():
-    analysis = oa.OnyxAnalysis()
+    analysis = oa.GphaAnalysis()
     analysis.add_analysis_details(
         analysis_name="name",
         analysis_description={"name": "analysis", "type": "details"},  # ty:ignore[invalid-argument-type]
@@ -554,7 +572,7 @@ def test__get_fields_other_field_is_dict():
 
 
 def test_add_package_metadata():
-    analysis = oa.OnyxAnalysis()
+    analysis = oa.GphaAnalysis()
 
     analysis.add_package_metadata("climb-onyx-client")
     version_check = re.fullmatch("v[0-9]+\\.[0-9]+\\.[0-9]+", analysis.pipeline_version)
@@ -566,13 +584,14 @@ def test_add_package_metadata():
 
 def test_add_results(example_results, expected_results):
     result = "headline result"
-    analysis = oa.OnyxAnalysis()
+    analysis = oa.GphaAnalysis()
     analysis.add_results(result, example_results)
 
     assert analysis.result == result
     assert analysis.result_metrics == expected_results
 
 
+#OnyxAnalysis method only
 def test_add_server_records():
     sample_id = "ID-123456789"
     server = "synthscape"
@@ -582,7 +601,7 @@ def test_add_server_records():
 
 
 def test_write_analysis_to_json(onyx_json_file_path, complete_field_dict):
-    analysis = oa.OnyxAnalysis()
+    analysis = oa.GphaAnalysis()
     for key, value in complete_field_dict.items():
         setattr(analysis, key, value)
     analysis.write_analysis_to_json(onyx_json_file_path)
@@ -594,11 +613,34 @@ def test_write_analysis_to_json(onyx_json_file_path, complete_field_dict):
 @pytest.mark.parametrize(
     "field_dict,expected_log_message,expected_output",
     [
+        ("complete_field_dict_base", "no_error_log", False),
+        ("missing_field_dict_base", "missing_field_log", True),
+    ],
+)
+def test_check_required_fields_base(field_dict, expected_log_message, expected_output, request, caplog):
+    field_dict = request.getfixturevalue(field_dict)
+    expected_log_message = request.getfixturevalue(expected_log_message)
+
+    analysis = oa.GphaAnalysis()
+    # populate the analysis table class with the attributes from the fixture:
+    for key, value in field_dict.items():
+        setattr(analysis, key, value)
+
+    field_fail = analysis._check_required_fields()
+
+    assert all(messages in caplog.text for messages in expected_log_message)
+    assert field_fail == expected_output
+
+
+#test both to make sure required fields are checked for both base and onyx analysis classes
+@pytest.mark.parametrize(
+    "field_dict,expected_log_message,expected_output",
+    [
         ("complete_field_dict", "no_error_log", False),
         ("missing_field_dict", "missing_field_log", True),
     ],
 )
-def test_check_required_fields(field_dict, expected_log_message, expected_output, request, caplog):
+def test_check_required_fields_onyx(field_dict, expected_log_message, expected_output, request, caplog):
     field_dict = request.getfixturevalue(field_dict)
     expected_log_message = request.getfixturevalue(expected_log_message)
 
@@ -638,23 +680,23 @@ def test_check_required_outputs(field_dict, expected_log_message, expected_outpu
     assert isinstance(field_dict["methods"], dict)
 
 
-def test_read_analysis_from_json_pass(example_onyx_json_file, complete_field_dict):
-    analysis = oa.OnyxAnalysis()
-    analysis.read_analysis_from_json(example_onyx_json_file)
-    assert analysis.__dict__ == complete_field_dict
+def test_read_analysis_from_json_pass(example_base_json_file, complete_field_dict_base):
+    analysis = oa.GphaAnalysis()
+    analysis.read_analysis_from_json(example_base_json_file)
+    assert analysis.__dict__ == complete_field_dict_base
 
 
-def test_set_analysis_attributes(complete_field_dict_json, complete_field_dict):
-    analysis = oa.OnyxAnalysis()
-    analysis._set_analysis_attributes(complete_field_dict_json)
+def test_set_analysis_attributes(complete_base_field_dict_json, complete_field_dict_base):
+    analysis = oa.GphaAnalysis()
+    analysis._set_analysis_attributes(complete_base_field_dict_json)
 
-    assert analysis.__dict__ == complete_field_dict
+    assert analysis.__dict__ == complete_field_dict_base
 
 
-def test_check_analysis_attributes_pass(complete_field_dict):
-    analysis = oa.OnyxAnalysis()
+def test_check_analysis_attributes_pass(complete_field_dict_base):
+    analysis = oa.GphaAnalysis()
     # populate the analysis table class with the attributes from the fixture:
-    for key, value in complete_field_dict.items():
+    for key, value in complete_field_dict_base.items():
         setattr(analysis, key, value)
     attr_fail = analysis._check_analysis_attributes()
 
@@ -662,7 +704,7 @@ def test_check_analysis_attributes_pass(complete_field_dict):
 
 
 def test_check_analysis_attributes_fail(invalid_field_dict, caplog):
-    analysis = oa.OnyxAnalysis()
+    analysis = oa.GphaAnalysis()
     for field, value in invalid_field_dict.items():
         setattr(analysis, field, value)
     # methods should be dict before and after
@@ -675,10 +717,10 @@ def test_check_analysis_attributes_fail(invalid_field_dict, caplog):
     assert attr_fail
 
 
-def test_check_analysis_attributes_new_scape_fail(complete_field_dict):
-    field_dict = complete_field_dict.copy()
+def test_check_analysis_attributes_new_scape_fail(complete_field_dict_base):
+    field_dict = complete_field_dict_base.copy()
     field_dict["newscape_records"] = []
-    analysis = oa.OnyxAnalysis()
+    analysis = oa.GphaAnalysis()
     for field, value in field_dict.items():
         setattr(analysis, field, value)
     attr_fail = analysis._check_analysis_attributes()
@@ -1092,7 +1134,7 @@ def test_add_methods(caplog):
         "command": "must_record_this_command.sh",
     }
 
-    analysis = oa.OnyxAnalysis()
+    analysis = oa.GphaAnalysis()
     methods_fail = analysis.add_methods(
         {
             "thresholds": {"limit": 10},
@@ -1115,7 +1157,7 @@ def test_add_methods(caplog):
 )
 def test_add_methods_try_adding_versions(input, msg, caplog):
     """Test that adding any kind of version or versions will log an error."""
-    analysis = oa.OnyxAnalysis()
+    analysis = oa.GphaAnalysis()
     # add_versions_to_methods has been run and "versions" already exists.
 
     methods_fail = analysis.add_methods(input)
@@ -1127,7 +1169,7 @@ def test_add_methods_try_adding_versions(input, msg, caplog):
 
 def test_add_methods_broken_methods_dict_input(caplog):
     """Test error logged if methods_dict input type incorrect."""
-    analysis = oa.OnyxAnalysis()
+    analysis = oa.GphaAnalysis()
     analysis.methods = {}
     methods_fail = analysis.add_methods(
         "command"  # ty:ignore[invalid-argument-type]

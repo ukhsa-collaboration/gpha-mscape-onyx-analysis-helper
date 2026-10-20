@@ -13,7 +13,7 @@ import os
 import time
 from functools import wraps
 from pathlib import Path
-from typing import Any
+from typing import Any, ClassVar, Self
 
 from onyx import OnyxClient, OnyxConfig, OnyxEnv
 from onyx.exceptions import OnyxClientError, OnyxConfigError, OnyxConnectionError, OnyxHTTPError
@@ -311,7 +311,27 @@ def truncate_version(version: str, use_version: str = "PATCH"):
     return ".".join(v)
 
 
-class OnyxAnalysis:
+class GphaAnalysis:
+    required_fields: ClassVar[list[str]] = [
+        "analysis_date",
+        "name",
+        "pipeline_name",
+        "pipeline_version",
+        "result",
+    ]
+    accepted_fields: ClassVar[list[str]] = [
+        "analysis_date",
+        "name",
+        "description",
+        "pipeline_name",
+        "pipeline_url",
+        "pipeline_version",
+        "pipeline_command",
+        "methods",
+        "result",
+        "result_metrics",
+    ]
+
     def __init__(self):
         self.analysis_date: datetime.datetime
         self.name: str
@@ -323,11 +343,6 @@ class OnyxAnalysis:
         self.methods: dict
         self.result: str
         self.result_metrics: dict
-        self.report: Path | None
-        self.outputs: Path | None
-        self.upstream_analyses: str | None
-        self.downstream_analyses: str | None
-        self.identifiers: list[str] = []
 
     def add_analysis_details(self, analysis_name: str, analysis_description: str) -> None:
         """Adds analysis details to onyx analysis object. Sets analysis date
@@ -349,6 +364,180 @@ class OnyxAnalysis:
         self.pipeline_url = package_metadata["Project-URL"].split(", ")[
             1
         ]  # Get url from toml - add to template
+
+    def add_pipeline_command(self, command: dict) -> None:
+        """
+        Adds the pipeline command used for the analysis to the onyx analysis object.
+
+        Arguments:
+            command: dict containing the pipeline command details e.g., argparse dictionary.
+        """
+        self.pipeline_command = json.dumps(command, separators=(",", ":"))
+
+    def add_methods(self, methods_dict: dict) -> bool:
+        """
+        Attempts to add methods to onyx analysis object. If methods are invalid, returns
+        methods_fail.
+
+        DO NOT provide 'versions' with this method, use add_versions_to_methods instead.
+
+        Arguments:
+            method_dicts: dict containing methods to add. Recommended to be nested but doesn't have
+            to be.
+                e.g.: {"thresholds": {"cutoff": 1, "limit": 2}} or {"command": "tool --defaults"}
+                or a combination of both.
+
+        Returns:
+            methods_fail: true if fail, check logger message.
+        """
+        methods_fail = False
+
+        if not isinstance(methods_dict, dict):
+            logger.error("Error: Methods must be in dict format.")
+            methods_fail = True
+            return methods_fail
+
+        # If attribute not yet set, set as empty dict.
+        if not hasattr(self, "methods"):
+            self.methods = {}
+
+        for method_name, method_params in methods_dict.items():
+            if method_name == "version" or method_name == "versions":
+                logger.error(
+                    (  # noqa: UP031
+                        "Error: Cannot add '%s' to the methods field with add_methods. "
+                        "Use add_versions_to_methods to add versions."
+                    )
+                    % (method_name)
+                )
+                methods_fail = True
+                return methods_fail
+            self.methods[method_name] = method_params
+        return methods_fail
+
+    def add_results(self, top_result: str, results_dict: dict) -> bool:
+        """Attempts to add results to analysis object. If results are
+        invalid, returns results_fail.
+        """
+        if isinstance(results_dict, dict):
+            self.result = top_result
+            self.result_metrics: dict = results_dict
+            results_fail = False
+        else:
+            logger.error("Error: result_metrics must be in dict format")
+            results_fail = True
+
+        return results_fail
+
+    # Private methods for creating new analysis object
+    def _set_analysis_date(self) -> None:
+        "Checks if analysis date is present and sets today's date if it isn't"
+        if not hasattr(self, "analysis_date"):
+            self.analysis_date = datetime.datetime.now().date().isoformat()
+
+    def _get_fields(self) -> dict:
+        """
+        Get all the fields in the analysis table. If methods and results_metrics set, convert dicts
+        to json string.
+        """
+        fields_dict: dict[str, str | dict | Path | list | None] = vars(self).copy()
+        for field, value in fields_dict.items():
+            if isinstance(value, dict):
+                fields_dict[field] = json.dumps(value)
+
+        return fields_dict
+
+    def _set_analysis_attributes(self, analysis_dict: dict) -> None:
+        """Sets class attributes from input dictionary. Attributes that are dicts are parsed from
+        json as dicts into the instance."""
+        for key, value in analysis_dict.items():
+            if key == "result_metrics" or key == "methods":
+                value = json.loads(value)  # these need loading into dict type.
+            setattr(self, key, value)
+
+    def _check_required_fields(self) -> bool:
+        "Checks all required fields are present, returns True if fields missing"
+        fields_dict = self._get_fields()
+        missing_field = False
+
+        if not all(field in fields_dict for field in self.required_fields):
+            missing_fields = [field for field in self.required_fields if field not in fields_dict]
+            logger.error("Missing required fields: %s", missing_fields)
+            missing_field = True
+
+        return missing_field
+
+    def _check_analysis_attributes(self) -> bool:
+        "Checks all attributes are valid onyx fields, return True if invalid fields present"
+
+        analysis_dict = self._get_fields()
+        attribute_fail = False
+
+        invalid_attributes = list(analysis_dict.keys() - set(self.accepted_fields))
+
+        if invalid_attributes != []:
+            logger.error("Invalid attribute in onyx analysis: %s", invalid_attributes)
+            attribute_fail = True
+
+        return attribute_fail
+
+    # Read in analysis information from json
+    def read_analysis_from_json(self, analysis_json: Path) -> None:
+        "Reads analysis object from json and sets class attributes"
+        with Path(analysis_json).open("r") as file:
+            data = json.load(file)
+
+        self._set_analysis_attributes(data)
+        if self._check_analysis_attributes():
+            logger.error("Analysis attributes contain invalid fields.")
+
+    @classmethod
+    def from_json(cls, analysis_json: Path) -> Self:
+        "Creates an analysis object from a json file"
+        analysis = cls()
+        analysis.read_analysis_from_json(analysis_json)
+        return analysis
+
+    # Write analysis object to json
+    def write_analysis_to_json(self, result_file: Path) -> Path | None:
+        "Writes onyx analysis object to json"
+        fields_dict = self._get_fields()
+
+        # Check all required fields are present and add status to list
+    
+        if self._check_required_fields():
+            logger.error("Required fields missing, analysis JSON does not match required format.")
+        if self._check_analysis_attributes():
+            logger.error("Analysis attributes contain invalid fields.")
+
+        with Path(result_file).open("w") as file:
+            json.dump(fields_dict, file)
+
+        return result_file
+
+
+class OnyxAnalysis(GphaAnalysis):
+    required_fields: ClassVar[list[str]] = [*GphaAnalysis.required_fields, "identifiers"]
+    accepted_fields: ClassVar[list[str]] = [
+        *GphaAnalysis.accepted_fields, 
+        "identifiers",
+        "report",
+        "outputs",
+        "upstream_analyses",
+        "downstream_analyses",
+        "synthscape_records", # these three records options should be mutually exclusive
+        "mscape_records",
+        "devscape_records",
+        "is_published",
+        ]
+
+    def __init__(self):
+        super().__init__()
+        self.report: Path | None
+        self.outputs: Path | None
+        self.upstream_analyses: str | None
+        self.downstream_analyses: str | None
+        self.identifiers: list[str] = []
 
     def add_versions_to_methods(
         self,
@@ -458,61 +647,6 @@ class OnyxAnalysis:
         self.methods["versions_hash"] = _calculate_versions_hash(self.methods["versions"])
         return methods_fail
 
-    def add_methods(self, methods_dict: dict) -> bool:
-        """
-        Attempts to add methods to onyx analysis object. If methods are invalid, returns
-        methods_fail.
-
-        DO NOT provide 'versions' with this method, use add_versions_to_methods instead.
-
-        Arguments:
-            method_dicts: dict containing methods to add. Recommended to be nested but doesn't have
-            to be.
-                e.g.: {"thresholds": {"cutoff": 1, "limit": 2}} or {"command": "tool --defaults"}
-                or a combination of both.
-
-        Returns:
-            methods_fail: true if fail, check logger message.
-        """
-        methods_fail = False
-
-        if not isinstance(methods_dict, dict):
-            logger.error("Error: Methods must be in dict format.")
-            methods_fail = True
-            return methods_fail
-
-        # If attribute not yet set, set as empty dict.
-        if not hasattr(self, "methods"):
-            self.methods = {}
-
-        for method_name, method_params in methods_dict.items():
-            if method_name == "version" or method_name == "versions":
-                logger.error(
-                    (  # noqa: UP031
-                        "Error: Cannot add '%s' to the methods field with add_methods. "
-                        "Use add_versions_to_methods to add versions."
-                    )
-                    % (method_name)
-                )
-                methods_fail = True
-                return methods_fail
-            self.methods[method_name] = method_params
-        return methods_fail
-
-    def add_results(self, top_result: str, results_dict: dict) -> bool:
-        """Attempts to add results to analysis object. If results are
-        invalid, returns results_fail.
-        """
-        if isinstance(results_dict, dict):
-            self.result = top_result
-            self.result_metrics: dict = results_dict
-            results_fail = False
-        else:
-            logger.error("Error: result_metrics must be in dict format")
-            results_fail = True
-
-        return results_fail
-
     def add_server_records(self, sample_id: str, server_name: str) -> None:
         """Creates records field for appropriate server e.g. "mscape_records"
         and adds sample_id to this field.
@@ -534,24 +668,6 @@ class OnyxAnalysis:
             outputs_fail = True
 
         return outputs_fail
-
-    # Private methods for creating new analysis object
-    def _set_analysis_date(self) -> None:
-        "Checks if analysis date is present and sets today's date if it isn't"
-        if not hasattr(self, "analysis_date"):
-            self.analysis_date = datetime.datetime.now().date().isoformat()
-
-    def _get_fields(self) -> dict:
-        """
-        Get all the fields in the analysis table. If methods and results_metrics set, convert dicts
-        to json string.
-        """
-        fields_dict: dict[str, str | dict | Path | list | None] = vars(self).copy()
-        for field, value in fields_dict.items():
-            if isinstance(value, dict):
-                fields_dict[field] = json.dumps(value)
-
-        return fields_dict
 
     def _get_onyx_payload(self, publish: bool):
         """
@@ -601,16 +717,6 @@ class OnyxAnalysis:
 
         return result, exitcode
 
-    # Write analysis object to json
-    def write_analysis_to_json(self, result_file: Path) -> Path | None:
-        "Writes onyx analysis object to json"
-        fields_dict = self._get_fields()
-
-        with Path(result_file).open("w") as file:
-            json.dump(fields_dict, file)
-
-        return result_file
-
     # Check fields and attributes are valid
     def check_analysis_object(self, publish_analysis: bool) -> list[bool | str]:
         """Performs checks on an analysis object to ensure required fields
@@ -635,25 +741,6 @@ class OnyxAnalysis:
 
         return status_list
 
-    def _check_required_fields(self) -> bool:
-        "Checks all required fields are present, returns True if fields missing"
-        fields_dict = self._get_fields()
-        missing_field = False
-        required_fields = [
-            "analysis_date",
-            "name",
-            "pipeline_name",
-            "pipeline_version",
-            "result",
-            "identifiers",
-        ]
-        if not all(field in fields_dict for field in required_fields):
-            missing_fields = [field for field in required_fields if field not in fields_dict]
-            logger.error("Missing required fields: %s", missing_fields)
-            missing_field = True
-
-        return missing_field
-
     def _check_required_outputs(self) -> bool:
         "Checks output field is present, returns True if missing"
         fields_dict = self._get_fields()
@@ -665,53 +752,6 @@ class OnyxAnalysis:
             missing_output = True
 
         return missing_output
-
-    def _check_analysis_attributes(self) -> bool:
-        "Checks all attributes are valid onyx fields, return True if invalid fields present"
-
-        analysis_dict = self._get_fields()
-        attribute_fail = False
-
-        valid_attributes = [
-            "published_date",
-            "site",
-            "analysis_id",
-            "analysis_date",
-            "name",
-            "description",
-            "pipeline_name",
-            "pipeline_url",
-            "pipeline_version",
-            "pipeline_command",
-            "methods",
-            "result",
-            "result_metrics",
-            "report",
-            "outputs",
-            "upstream_analyses",
-            "downstream_analyses",
-            "identifiers",
-            "synthscape_records",
-            "mscape_records",
-            "devscape_records",
-            "is_published",
-        ]
-
-        invalid_attributes = list(analysis_dict.keys() - set(valid_attributes))
-
-        if invalid_attributes != []:
-            logger.error("Invalid attribute in onyx analysis: %s", invalid_attributes)
-            attribute_fail = True
-
-        return attribute_fail
-
-    # Read in analysis information from json
-    def read_analysis_from_json(self, analysis_json: Path) -> None:
-        "Reads analysis object from json and sets class attributes"
-        with Path(analysis_json).open("r") as file:
-            data = json.load(file)
-
-        self._set_analysis_attributes(data)
 
     # Read in existing analysis from onyx
     def read_analysis_from_onyx(self, analysis_id: str, server: str) -> tuple[dict, int]:
@@ -738,14 +778,6 @@ class OnyxAnalysis:
         exitcode = 0
 
         return analysis_dict, exitcode
-
-    def _set_analysis_attributes(self, analysis_dict: dict) -> None:
-        """Sets class attributes from input dictionary. Attributes that are dicts are parsed from
-        json as dicts into the instance."""
-        for key, value in analysis_dict.items():
-            if key == "result_metrics" or key == "methods":
-                value = json.loads(value)  # these need loading into dict type.
-            setattr(self, key, value)
 
     @call_to_onyx
     def update_onyx_analysis(
