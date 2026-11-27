@@ -1,4 +1,4 @@
-FROM python:3.12
+FROM python:3.14
 
 ADD . /gpha_mscape_onyx_analysis_helper/
 WORKDIR /gpha_mscape_onyx_analysis_helper

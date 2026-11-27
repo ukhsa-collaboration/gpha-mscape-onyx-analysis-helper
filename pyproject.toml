@@ -3,7 +3,7 @@ name = "onyx-analysis-helper"
 dynamic = ["version"]
 description = "Repository containing helper functions to support interactions with onyx analysis tables"
 authors = [{name = "Deborah Greer", email = "deborah.greer@ukhsa.gov.uk"}]
-requires-python = ">=3.12"
+requires-python = ">=3.14.10"
 dependencies = ["climb-onyx-client", "pandas", "boto3", "regex"]
 
 [tool.setuptools.dynamic]

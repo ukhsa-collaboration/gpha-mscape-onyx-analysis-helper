@@ -4,10 +4,12 @@
 name: mscape_test_build_workflow
 
 on:
-  push:
-    branches: [ "main" ]
   pull_request:
     branches: [ "main" ]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
 
 permissions:
   contents: read
@@ -20,14 +22,13 @@ jobs:
     steps:
     - name: Checkout
       uses: actions/checkout@v4
-    - name: Set up Python 3.12
+    - name: Set up Python 3.14
       uses: actions/setup-python@v3
       with:
-        python-version: "3.12"
+        python-version: "3.14"
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install pandas pyyaml climb-onyx-client boto3
         if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
     - name: Install code base
       run: pip install .
@@ -36,9 +37,9 @@ jobs:
     - name: Lint with ruff
       run: |
         # Stop the build if there are Python syntax errors
-        ruff check --output-format=github --target-version=py312
+        ruff check --output-format=github --target-version=py314
         # Add error codes with "--ignore" if want to progress with allowed errors
-        # e.g. ruff check --output-format=github --target-version=py312 --ignore PTH118,PTH123
+        # e.g. ruff check --output-format=github --target-version=py314 --ignore PTH118,PTH123
     - name: Test with pytest
       run: |
-        pytest --cov=onyx_analysis_helper .
+        pytest --junitxml=junit/test-results.xml --cov=com --cov-report=xml --cov-report=html
