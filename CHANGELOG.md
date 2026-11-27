@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.6.8 - Fix
+
+### Changed
+- Bumped python version from 3.12 to 3.14 in pyproject.toml, Dockerfile, github workflow test-build.yml.
+
+---
+---
+
+
 ## v0.6.7 - HotFix for swapping args in function call
 
 ### Fixed
